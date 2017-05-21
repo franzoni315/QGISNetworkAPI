@@ -1,0 +1,39 @@
+# This file contains metadata for your plugin. Since 
+# version 2.0 of QGIS this is the proper way to supply 
+# information about a plugin. The old method of 
+# embedding metadata in __init__.py will 
+# is no longer supported since version 2.0.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=networkapi
+qgisMinimumVersion=2.0
+description=Remote Control Interface
+version=0.1
+author=Barry Rowlingson
+email=b.rowlingson@gmail.com
+
+about=QGIS Network API allows control of QGIS via a REST interface. Produced as part of the Google Summer of Code 2017
+
+tracker=https://gitlab.com/qgisapi/networkapi/issues
+repository=https://gitlab.com/qgisapi/networkapi/
+# End of mandatory metadata
+
+# Recommended items:
+
+# Uncomment the following line and add your changelog:
+# changelog=
+
+# Tags are comma separated with spaces allowed
+tags=web
+
+homepage=
+category=Plugins
+icon=icon.png
+# experimental flag
+experimental=True
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+
