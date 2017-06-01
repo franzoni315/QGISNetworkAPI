@@ -67,6 +67,8 @@ class NetworkAPI:
         self.toolbar.setObjectName(u'NetworkAPI')
 
         self.serversingleton = NetworkAPIServer(self.iface)
+        # to save clicks while developing: immediately start server on load
+        self.serversingleton.startServer(8090)
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -178,6 +180,7 @@ class NetworkAPI:
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
+        self.serversingleton.stopServer()
 
 
     def run(self):
@@ -195,28 +198,70 @@ class NetworkAPI:
 from PyQt4.QtNetwork import QTcpServer
 from PyQt4.QtCore import SIGNAL
 
-# qgis.utils.reloadPlugin('networkapi')
-
 class NetworkAPIServer(QTcpServer):
     def __init__(self, iface):
         QTcpServer.__init__(self)
         self.iface = iface
 
-    def startServer(self, port):
+    def stopServer(self):
         if self.isListening():
-            print "Stopping to listen at", self.serverAddress().toString()
+            print 'Stopping to listen on port', self.serverPort()
             self.close()
+
+    def startServer(self, port):
+        self.stopServer()
 
         self.connect(self, SIGNAL("newConnection()"), self.processRequest)
         if self.listen(port=port):
-            print "Listening for Network API requests on port", self.serverPort()
+            print 'Listening for Network API requests on port', self.serverPort()
         else:
-          print "Error: failed to open socket at port", port
+          print 'Error: failed to open socket at port', port
 
     def processRequest(self):
         connection = self.nextPendingConnection()
-        print "New connection from", connection.peerAddress().toString()
-        print "Request:", str(connection.readAll())
 
-        # don't allow persistent connections
+        # FIXME querying one of the connection's fields before passing it on to
+        # the NetworkAPIRequest is in fact required, otherwise the content read
+        # from the connection is for some reason empty? This might have to do
+        # with Qt, maybe NetworkAPIRequest would have to be a QObject too?
+        print 'New connection from', connection.peerAddress().toString()
+        request = NetworkAPIRequest(connection)
+
+        print 'Request path structure:', request.path_components
+        # TODO find+call function corresponding to given path (from a dict?)
+
+        # return status (and content) will come from the previous function call
+        request.send_response(200)
+        request.end_headers()
+        request.wfile.write('Foo')
+
+        # write response content collected in wfile StringIO to the connection
+        connection.write(request.wfile.getvalue())
+        # flush response and close connection (i.e. no persistent connections)
         connection.disconnectFromHost()
+
+# request parsing
+from BaseHTTPServer import BaseHTTPRequestHandler
+from StringIO import StringIO
+from urlparse import urlparse
+
+class NetworkAPIRequest(BaseHTTPRequestHandler):
+
+    def __init__(self, connection):
+        self.server_version = 'QGISNetworkAPI/0.0 ' + self.server_version
+
+        # mock input/output files for the BaseRequestHandler
+        self.rfile = StringIO(str(connection.readAll()))
+        self.raw_requestline = self.rfile.readline()
+        self.wfile = StringIO()
+
+        # client_address is really just used for logging
+        self.client_address = (connection.peerAddress().toString(), connection.peerPort())
+
+        self.error_code = self.error_message = None
+        self.parse_request()
+
+        # further parse request path
+        parsed_path = urlparse(self.path)
+        self.path_components = parsed_path[2][1:].split('/')
+        self.query = parsed_path[4]
