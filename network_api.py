@@ -61,10 +61,12 @@ class NetworkAPI:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&networkapi')
+        self.menu = self.tr(u'&Network API')
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar(u'NetworkAPI')
         self.toolbar.setObjectName(u'NetworkAPI')
+
+        self.serversingleton = NetworkAPIServer(self.iface)
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -172,9 +174,7 @@ class NetworkAPI:
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
-            self.iface.removePluginMenu(
-                self.tr(u'&networkapi'),
-                action)
+            self.iface.removePluginMenu(self.menu, action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
@@ -188,6 +188,35 @@ class NetworkAPI:
         result = self.dlg.exec_()
         # See if OK was pressed
         if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
+            self.serversingleton.startServer(8090)
+
+
+# collect imports here, since this class might want to be moved to its own file
+from PyQt4.QtNetwork import QTcpServer
+from PyQt4.QtCore import SIGNAL
+
+# qgis.utils.reloadPlugin('networkapi')
+
+class NetworkAPIServer(QTcpServer):
+    def __init__(self, iface):
+        QTcpServer.__init__(self)
+        self.iface = iface
+
+    def startServer(self, port):
+        if self.isListening():
+            print "Stopping to listen at", self.serverAddress().toString()
+            self.close()
+
+        self.connect(self, SIGNAL("newConnection()"), self.processRequest)
+        if self.listen(port=port):
+            print "Listening for Network API requests on port", self.serverPort()
+        else:
+          print "Error: failed to open socket at port", port
+
+    def processRequest(self):
+        connection = self.nextPendingConnection()
+        print "New connection from", connection.peerAddress().toString()
+        print "Request:", str(connection.readAll())
+
+        # don't allow persistent connections
+        connection.disconnectFromHost()
