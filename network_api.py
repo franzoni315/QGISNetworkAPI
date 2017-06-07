@@ -195,7 +195,6 @@ class NetworkAPI:
 
 # collect imports here, since this class might want to be moved to its own file
 from PyQt4.QtNetwork import QTcpServer
-from PyQt4.QtCore import SIGNAL
 from network_api_functions import network_api_functions
 
 class NetworkAPIServer(QTcpServer):
@@ -211,7 +210,7 @@ class NetworkAPIServer(QTcpServer):
     def startServer(self, port):
         self.stopServer()
 
-        self.connect(self, SIGNAL("newConnection()"), self.register_request)
+        self.newConnection.connect(self.register_request)
         if self.listen(port=port):
             print 'Listening for Network API requests on port', self.serverPort()
         else:
@@ -233,12 +232,16 @@ class NetworkAPIServer(QTcpServer):
         # their body. The real fix for this would probably be to pipe the data
         # coming from the socket to a file from which the HTTPRequestHandler
         # can read it incrementally...
+        # TODO self.connection.canReadLine()
         if self.connection.bytesAvailable() == 0:
             print "readyRead() signalled when no data actually available to read, this isn't gonna end well..."
         request = NetworkAPIRequest(self.connection)
 
         # TODO check authorisation, send 401
         # inspect request.headers['Authorization']
+
+        if request.command == "POST":
+            print "Received", request.headers['Content-Length'], "byte of data"
 
         # find+call function corresponding to given path
         qgis_call = network_api_functions.get(request.path)
@@ -249,7 +252,10 @@ class NetworkAPIServer(QTcpServer):
             # TODO do we care about whether correct HTTP method was used (405)?
 
             try:
-                result = qgis_call(self.iface, request.query, request.rfile.getvalue())
+                # instead of loading the entire payload into the message, could
+                # pass a pointer to the network-inputstream here to enable
+                # incremental parsing
+                result = qgis_call(self.iface, request.query, request.headers.get_payload())
 
                 if result == None:
                     request.send_response(200)
@@ -259,9 +265,14 @@ class NetworkAPIServer(QTcpServer):
                     if len(result) > 2:
                         for (field, value) in result[2]:
                             request.send_header(field, value)
+                    # TODO unless another Content-type was specified, set to
+                    # 'application/json' by default?
                     request.end_headers()
                     if len(result) > 1:
+                        # TODO unless other Content-type specified, do json
+                        # conversion here
                         request.wfile.write(result[1])
+
             except Exception as e:
                 request.send_http_error(500, str(e))
 
@@ -274,22 +285,28 @@ class NetworkAPIServer(QTcpServer):
 # request parsing
 from BaseHTTPServer import BaseHTTPRequestHandler
 from StringIO import StringIO
+from email import message_from_file # TODO replace by _from_string
 from urlparse import parse_qsl, urlparse
 
 class NetworkAPIRequest(BaseHTTPRequestHandler):
+
+    # default mimetools.Message is deprecated and removed in Python 3. instead,
+    # mock function signature for MessageClass(self.rfile, 0) call to email.*
+    MessageClass = lambda self, fp, _: message_from_file(fp)
 
     def __init__(self, connection):
         self.server_version = 'QGISNetworkAPI/0.0 ' + self.server_version
 
         # mock input/output files for the BaseRequestHandler
         self.rfile = StringIO(str(connection.readAll()))
-        self.raw_requestline = self.rfile.readline()
         self.wfile = StringIO()
 
         # client_address is really just used for logging
         self.client_address = (connection.peerAddress().toString(), connection.peerPort())
 
+        self.raw_requestline = self.rfile.readline()
         self.parse_request()
+        # class fields now populated: command, path, request_version, headers
 
         # further parse request path: detach GET arguments
         parsed_path = urlparse(self.path)
