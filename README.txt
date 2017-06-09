@@ -1,33 +1,40 @@
-Plugin Builder Results
+# QGIS Desktop Network API and remote control plugin
 
-Your plugin NetworkAPI was created in:
-    /home/rowlings/Work/GIS/QGis/GSoC/NetworkAPI
+This plugin provides a web service API that exposes QGIS' data processing and canvas drawing functionalities. The plugin provides a way to include QGIS in the data processing workflow of other (‘mapping-deficient’) programming languages over a HTTP interface which mirrors the existing QGIS API, without precluding the ability to make use of its interactive editing components. It is currently under development as part of [this Google Summer of Code 2017 project](https://summerofcode.withgoogle.com/projects/#5197021490184192).
 
-Your QGIS plugin directory is located at:
-    /home/rowlings/.qgis2/python/plugins
+## Testing
 
-What's Next:
+The plugin is currently under development so there is not a whole lot of (reliable) documentation. You can nevertheless try out and help test the current development version of the plugin:
 
-  * Copy the entire directory containing your new plugin to the QGIS plugin
-    directory
+1. Install the plugin into your $QGIS_HOME/plugins/ folder, either by `git clone`ing this repository or by downloading the latest snapshot as a [zip file](https://gitlab.com/qgisapi/networkapi/repository/archive.zip?ref=master).
+2. In QGIS (2.*), activate the plugin under Plugins > Manage and Install Plugins > 'Network API'
+3. Once activated, the plugin will automatically start listening for (and accept all) connections on port 8090. (The plugin dialog is currently just a mockup, it is not configurable yet.)
+4. Access the web service API, currently implemented requests/paths can be found [here](https://gitlab.com/qgisapi/networkapi/blob/master/network_api_functions.py). Some example commands that can be run from your console:
 
-  * Compile the resources file using pyrcc4
+```{bash}
+# add some vector data from the web
+curl http://localhost:8090/qgis/addVectorLayer?file=https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson
 
-  * Run the tests (``make test``)
+# add another layer as POST data (currently only reliable for small files!)
+wget https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson
+curl -d @ne_50m_populated_places.geojson http://localhost:8090/qgis/addVectorLayer
 
-  * Test the plugin by enabling it in the QGIS plugin manager
+# adjust view
+curl http://localhost:8090/qgis/mapCanvas/zoomToFullExtent
 
-  * Customize it by editing the implementation file: ``network_api.py``
+# retrieve current scale
+curl http://localhost:8090/qgis/mapCanvas/scale
 
-  * Create your own custom icon, replacing the default icon.png
+# read current canvas content
+# these two urls also work in a browser (although currently not under Chrome)
+wget http://localhost:8090/qgis/mapCanvas
+wget http://localhost:8090/qgis/mapCanvas?format=jpg
 
-  * Modify your user interface by opening NetworkAPI.ui in Qt Designer
+# some more canvas manipulation
+curl http://localhost:8090/qgis/mapCanvas/zoomIn
+curl http://localhost:8090/qgis/mapCanvas/zoomScale?scale=12345.6
+```
 
-  * You can use the Makefile to compile your Ui and resource files when
-    you make changes. This requires GNU make (gmake)
+### Test data
 
-For more information, see the PyQGIS Developer Cookbook at:
-http://www.qgis.org/pyqgis-cookbook/index.html
-
-(C) 2011-2014 GeoApt LLC - geoapt.com
-Git revision : $Format:%H$
+http://blog.mastermaps.com/2011/02/natural-earth-vectors-in-cloud.html
