@@ -252,11 +252,10 @@ class NetworkAPIServer(QTcpServer):
             # TODO do we care about whether correct HTTP method was used (405)?
 
             try:
-                # instead of loading the entire payload into the message, could
-                # pass a pointer to the network-inputstream here to enable
-                # incremental parsing
-                result = qgis_call(self.iface, request.query, request.headers.get_payload())
+                result = qgis_call(self.iface, request)
 
+                # TODO maybe calling send_response() etc in the functions is
+                # cleaner/less messy regarding building complex responses?
                 if result == None:
                     request.send_response(200)
                 else:
@@ -292,6 +291,9 @@ class NetworkAPIRequest(BaseHTTPRequestHandler):
 
     # default mimetools.Message is deprecated and removed in Python 3. instead,
     # mock function signature for MessageClass(self.rfile, 0) call to email.*
+
+    # this currently loads the entire body of the message into memory, could
+    # do incremental parsing instead and pass the network-inputstream?
     MessageClass = lambda self, fp, _: message_from_file(fp)
 
     def __init__(self, connection):
@@ -312,7 +314,7 @@ class NetworkAPIRequest(BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         self.path = parsed_path[2]
         # parse key=value pairs, keep keys with blank values
-        self.query = dict(parse_qsl(parsed_path[4], True))
+        self.args = dict(parse_qsl(parsed_path[4], True))
 
     def send_http_error(self, code, message=None):
         if message == None:
