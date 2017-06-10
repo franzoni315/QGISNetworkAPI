@@ -201,6 +201,9 @@ class NetworkAPIServer(QTcpServer):
     def __init__(self, iface):
         QTcpServer.__init__(self)
         self.iface = iface
+        # process one connection/request at a time
+        self.connection = None
+        self.request = None
 
     def stopServer(self):
         if self.isListening():
@@ -210,76 +213,95 @@ class NetworkAPIServer(QTcpServer):
     def startServer(self, port):
         self.stopServer()
 
-        self.newConnection.connect(self.register_request)
+        self.newConnection.connect(self.new_connection)
         if self.listen(port=port):
             print 'Listening for Network API requests on port', self.serverPort()
         else:
           print 'Error: failed to open socket on port', port
 
-    def register_request(self):
-        self.connection = self.nextPendingConnection()
-        self.connection.readyRead.connect(self.process_request)
+    def new_connection(self):
+        # only accept connection if we're not still busy processing the
+        # previous one (in which case the new one will be taken care of when
+        # current one finishes, see call to hasPendingConnections() below)
+        if self.connection == None:
+            self.connection = self.nextPendingConnection()
+            self.connection.disconnected.connect(self.connection_ended)
+            self.connection.readyRead.connect(self.process_data)
+        else:
+            print 'queueing next request...'
+
+    def connection_ended(self):
+        print 'Disconnecting', self.connection.peerAddress().toString()
+        self.connection.readyRead.disconnect(self.process_data)
+        self.request = None
+        self.connection = None
+        # process waiting connections
+        if self.hasPendingConnections():
+            self.new_connection()
+
+    def process_data(self):
+        # readAll() doesn't guarantee that there isn't any more data still
+        # incoming before reaching the 'end' of the input stream (which, for
+        # network connections, is ill-defined anyway). in order to be able to
+        # parse incoming requests incrementally, we store the parse request
+        # header in a class variable.
+        if not self.connection.canReadLine():
+            print 'warning: readyRead() signalled before request line was complete'
+            return
+        if self.request == None:
+            # new request, parse header
+            self.request = NetworkAPIRequest(self.connection)
+        else:
+            # additional data for previous request, append to payload
+            self.request.headers.set_payload(self.request.headers.get_payload() + self.connection.readAll())
+        # respond to request or -- if data is still incomplete -- do nothing
+        self.process_request()
 
     def process_request(self):
-        # FIXME sometimes, the readyRead() signal appears to be emitted even
-        # when self.connection.bytesAvailable() == 0, causing no data to be
-        # read and the request parsing to fail (this is consistently the case
-        # for requests done from within Chrome). The fundamental problem is
-        # that readAll() doesn't guarantee that there isn't any more data still
-        # incoming before reaching the 'end' of the input stream (which, for
-        # network connections, is ill-defined anyway), an issue that might
-        # become worse once we're dealing with requests with actual data in
-        # their body. The real fix for this would probably be to pipe the data
-        # coming from the socket to a file from which the HTTPRequestHandler
-        # can read it incrementally...
-        # TODO self.connection.canReadLine()
-        if self.connection.bytesAvailable() == 0:
-            print "readyRead() signalled when no data actually available to read, this isn't gonna end well..."
-        request = NetworkAPIRequest(self.connection)
-
         # TODO check authorisation, send 401
         # inspect request.headers['Authorization']
 
-        if request.command == "POST":
-            print "Received", request.headers['Content-Length'], "byte of data"
-
         # find+call function corresponding to given path
-        qgis_call = network_api_functions.get(request.path)
+        qgis_call = network_api_functions.get(self.request.path)
 
         if qgis_call == None:
-            request.send_http_error(404)
+            self.request.send_http_error(404)
         else:
             # TODO do we care about whether correct HTTP method was used (405)?
+            if self.request.command == 'POST':
+                print 'Received', len(self.request.headers.get_payload()), 'of', self.request.content_length, 'bytes'
+                if len(self.request.headers.get_payload()) < self.request.content_length:
+                    print 'waiting for more data...'
+                    return
 
             try:
-                result = qgis_call(self.iface, request)
+                result = qgis_call(self.iface, self.request)
 
                 # TODO maybe calling send_response() etc in the functions is
                 # cleaner/less messy regarding building complex responses?
                 if result == None:
-                    request.send_response(200)
+                    self.request.send_response(200)
                 else:
-                    request.send_response(result[0])
+                    self.request.send_response(result[0])
                     # additional HTTP header fields specified?
                     if len(result) > 2:
                         for (field, value) in result[2]:
-                            request.send_header(field, value)
+                            self.request.send_header(field, value)
                     # TODO unless another Content-type was specified, set to
                     # 'application/json' by default?
-                    request.end_headers()
+                    self.request.end_headers()
                     if len(result) > 1:
                         # TODO unless other Content-type specified, do json
                         # conversion here
-                        request.wfile.write(result[1])
+                        self.request.wfile.write(result[1])
 
             except Exception as e:
-                request.send_http_error(500, str(e))
+                self.request.send_http_error(500, str(e))
 
         # pass output generated by BaseHTTPRequestHandler on to the QTcpSocket
-        self.connection.write(request.wfile.getvalue())
+        self.connection.write(self.request.wfile.getvalue())
         # flush response and close connection (i.e. no persistent connections)
         self.connection.disconnectFromHost()
-        self.connection = None
 
 # request parsing
 from BaseHTTPServer import BaseHTTPRequestHandler
@@ -303,18 +325,23 @@ class NetworkAPIRequest(BaseHTTPRequestHandler):
         self.rfile = StringIO(str(connection.readAll()))
         self.wfile = StringIO()
 
+        self.raw_requestline = self.rfile.readline()
+
         # client_address is really just used for logging
         self.client_address = (connection.peerAddress().toString(), connection.peerPort())
 
-        self.raw_requestline = self.rfile.readline()
-        self.parse_request()
-        # class fields now populated: command, path, request_version, headers
+        if self.parse_request():
+            # class fields now populated: command, path, headers
+            if self.command == 'POST':
+                self.content_length = int(self.headers['Content-Length'])
 
-        # further parse request path: detach GET arguments
-        parsed_path = urlparse(self.path)
-        self.path = parsed_path[2]
-        # parse key=value pairs, keep keys with blank values
-        self.args = dict(parse_qsl(parsed_path[4], True))
+            # further parse request path: detach GET arguments
+            parsed_path = urlparse(self.path)
+            self.path = parsed_path[2].rstrip('/')
+            # parse key=value pairs, keep keys with blank values
+            self.args = dict(parse_qsl(parsed_path[4], True))
+        else:
+            print 'invalid request, call disconnect?'
 
     def send_http_error(self, code, message=None):
         if message == None:
