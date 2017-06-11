@@ -1,0 +1,89 @@
+---
+output:
+  md_document:
+    variant: markdown_github
+---
+
+# QGIS Desktop Network API and remote control plugin
+
+This plugin provides a web service API that exposes QGIS' data processing and canvas drawing functionalities. The plugin provides a way to include QGIS in the data processing workflow of other (‘mapping-deficient’) programming languages over a HTTP interface which mirrors the existing QGIS API, without precluding the ability to make use of its interactive editing components. It is currently under development as part of [this Google Summer of Code 2017 project](https://summerofcode.withgoogle.com/projects/#5197021490184192).
+
+## Testing
+
+The plugin is currently under development so there is not a whole lot of (reliable) documentation. You can nevertheless try out and help test the current development version of the plugin:
+
+1. Install the plugin into your $QGIS_HOME/plugins/ folder, either by `git clone`ing this repository or by downloading the latest snapshot as a [zip file](https://gitlab.com/qgisapi/networkapi/repository/archive.zip?ref=master).
+2. In QGIS (2.*), activate the plugin under Plugins > Manage and Install Plugins > 'Network API'
+3. Once activated, the plugin will automatically start listening for (and accept all) connections on port 8090. (The plugin dialog is currently just a mockup, it is not configurable yet.)
+4. Access the web service API, currently implemented requests/paths can be found [here](https://gitlab.com/qgisapi/networkapi/blob/master/network_api_functions.py). Some example commands that can be run from your console:
+
+```{bash}
+# make sure QGIS Desktop 2.* is running with the Network Plugin enabled, then:
+curl --silent http://localhost:8090/qgis/mapLayers
+```
+
+```{bash}
+# add some vector data from the web
+curl --silent 'http://localhost:8090/qgis/addVectorLayer?uri=https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson&name=uri-layer'
+```
+
+```{bash}
+# add another layer as POST data
+if [ ! -f "ne_50m_populated_places.geojson" ]; then
+  wget https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson
+fi
+curl --silent -d @ne_50m_populated_places.geojson http://localhost:8090/qgis/addVectorLayer?name=geojson-layer
+```
+
+```{bash}
+# retrieve layer information
+curl --silent http://localhost:8090/qgis/mapLayers
+```
+
+```{bash}
+curl --silent http://localhost:8090/qgis/mapCanvas/extent
+```
+
+```{bash}
+# adjust view
+curl --silent http://localhost:8090/qgis/mapCanvas/zoomToFullExtent
+curl --silent http://localhost:8090/qgis/mapCanvas/extent
+```
+
+```{bash}
+# read current canvas content
+wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas
+file "mapCanvas"
+```
+
+```{bash}
+wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas?format=jpg
+file "mapCanvas?format=jpg"
+```
+
+```{bash}
+# retrieve current scale
+curl --silent http://localhost:8090/qgis/mapCanvas/scale
+```
+
+```{bash}
+# some more canvas manipulation
+curl --silent http://localhost:8090/qgis/mapCanvas/zoomIn
+curl --silent http://localhost:8090/qgis/mapCanvas/scale
+```
+
+```{bash}
+curl --silent http://localhost:8090/qgis/mapCanvas/zoomScale?scale=1234567.8
+curl --silent http://localhost:8090/qgis/mapCanvas/scale
+```
+
+### Test data
+
+http://blog.mastermaps.com/2011/02/natural-earth-vectors-in-cloud.html
+
+
+## Related projects
+
+The motivation behind this plugin is to make QGIS interface components available and scriptable from other mapping-averse programming language such as R. See https://gitlab.com/b-rowlingson/pqgisr
+
+For using QGIS processing routines from R (geared towards performing large scale data mangling without making use of QGIS UI components, with a significant overhead per processing invocation), have a look at the [RQGIS package](https://github.com/jannes-m/RQGIS).
