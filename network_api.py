@@ -202,17 +202,19 @@ class NetworkAPIServer(QTcpServer):
     def __init__(self, iface):
         QTcpServer.__init__(self)
         self.iface = iface
-        # process one connection/request at a time
-        self.connection = None
-        self.request = None
 
     def stopServer(self):
         if self.isListening():
             print 'Stopping to listen on port', self.serverPort()
             self.close()
 
+
     def startServer(self, port):
         self.stopServer()
+        # process one connection/request at a time
+        self.connection = None
+        self.request = None
+        self.nrequests = 0
 
         self.newConnection.connect(self.new_connection)
         if self.listen(port=port):
@@ -225,14 +227,17 @@ class NetworkAPIServer(QTcpServer):
         # previous one (in which case the new one will be taken care of when
         # current one finishes, see call to hasPendingConnections() below)
         if self.connection == None:
+            self.nrequests = self.nrequests + 1
+            print 'Processing connection #' + str(self.nrequests)
             self.connection = self.nextPendingConnection()
             self.connection.disconnected.connect(self.connection_ended)
             self.connection.readyRead.connect(self.process_data)
+            self.process_data()
         else:
-            print 'Still busy, queuing next request...'
+            print 'Still busy with #' + str(self.nrequests) + ', putting incoming connection on hold...'
 
     def connection_ended(self):
-        print 'Disconnecting', self.connection.peerAddress().toString()
+        print 'Disconnecting #' + str(self.nrequests) + ': ' + self.connection.peerAddress().toString()
         self.connection.readyRead.disconnect(self.process_data)
         self.request = None
         self.connection = None
@@ -307,10 +312,12 @@ class NetworkAPIServer(QTcpServer):
                 if len(result) > 1:
                     if len(result) > 2:
                         self.request.send_header('Content-Type', result[2])
-    #                    elif isinstance(result[0], basestring):
-    #                        content = 'text/plain'
                         self.request.end_headers()
                         self.request.wfile.write(result[1])
+                    elif result[0] != 200:
+                        # plain text error message
+                        self.request.send_header('Content-Type', 'text/plain')
+                        self.request.end_headers()
                     else:
                         self.request.send_header('Content-Type', 'application/json')
                         self.request.end_headers()

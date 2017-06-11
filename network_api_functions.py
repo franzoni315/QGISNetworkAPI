@@ -27,19 +27,19 @@ network_api_functions = {
     # http://qgis.org/api/2.18/classQgisInterface.html
     '/qgis/defaultStyleSheetOptions': lambda iface, _: [200, str(iface.defaultStyleSheetOptions())],
 
+    # http://qgis.org/api/2.18/classQgsMapLayerRegistry.html
     # can't seem to find a way to autoconvert QMaps to JSON...
+    # TODO implement optional 'id' GET arg
     '/qgis/mapLayers': lambda iface, _: [200, {name: layer for (name, layer) in QgsMapLayerRegistry.instance().mapLayers().iteritems()}],
     '/qgis/mapLayers/count': lambda iface, _: [200, QgsMapLayerRegistry.instance().count()],
-    # addRasterLayer and addVectorLayer below
-    # TODO determine whether layer removal was successful or not?
-    '/qgis/mapLayers/remove': lambda iface, request: [200, QgsMapLayerRegistry.instance().removeMapLayer(request.args['id'])],
-
-    # http://qgis.org/api/2.18/classQgsMapLayerRegistry.html
+    # see below for: addRasterLayer, addVectorLayer, remove
     '/qgis/editableLayers': lambda iface, _: [200, iface.editableLayers()],
     # the following paths require an argument specifying the desired layer
     '/qgis/editableLayers/maximumScale': lambda iface, _: None,
 
     # http://qgis.org/api/2.18/classQgsMapCanvas.html
+    '/qgis/mapCanvas/extent': lambda iface, _: [200, iface.mapCanvas().extent()],
+    '/qgis/mapCanvas/fullExtent': lambda iface, _: [200, iface.mapCanvas().fullExtent()],
     '/qgis/mapCanvas/magnificationFactor': lambda iface, _: iface.mapCanvas().magnificationFactor(),
     '/qgis/mapCanvas/mapUnitsPerPixel': lambda iface, _: iface.mapCanvas().mapUnitsPerPixel(),
     '/qgis/mapCanvas/scale': lambda iface, _: [200, iface.mapCanvas().scale()],
@@ -75,6 +75,17 @@ def get_canvas(iface, request):
 
 network_api_functions['/qgis/mapCanvas'] = get_canvas
 
+# TODO add support for removal of multiple layers. unwise to overload arg name?
+def remove_layers(iface, request):
+    layer = QgsMapLayerRegistry.instance().mapLayer(request.args['id'])
+    if layer == None:
+        return [422, 'No layer with that id']
+    else:
+        QgsMapLayerRegistry.instance().removeMapLayer(layer)
+        return [200, request.args['id']] #'layer' already deleted at this point
+
+network_api_functions['/qgis/mapLayers/remove'] = remove_layers
+
 def add_raster_layer(iface, request):
     if request.command == 'POST':
         # TODO check get_payload() for multipart?
@@ -87,7 +98,7 @@ def add_raster_layer(iface, request):
         # http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/loadlayer.html#vector-layers
         filename = request.args['uri']
     # 2 args for local file, 3 args for WMS layer
-    [200, iface.addRasterLayer(filename, request.args.get('name', 'NetworkAPILayer'))]
+    return [200, iface.addRasterLayer(filename, request.args.get('name', 'NetworkAPILayer'))]
     # TODO temp file cleanup
 
 network_api_functions['/qgis/addRasterLayer'] = add_raster_layer
@@ -102,7 +113,7 @@ def add_vector_layer(iface, request):
         # try 'uri' GET arg (could actually be file:// or a web http:// url)
         # http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/loadlayer.html#vector-layers
         filename = request.args['uri']
-    [200, iface.addVectorLayer(filename, request.args.get('name', 'NetworkAPILayer'), request.args.get('type', 'ogr'))]
+    return [200, iface.addVectorLayer(filename, request.args.get('name', 'NetworkAPILayer'), request.args.get('type', 'ogr'))]
     # TODO file cleanup
 
 network_api_functions['/qgis/addVectorLayer'] = add_vector_layer
@@ -123,5 +134,5 @@ class QGISJSONEncoder(JSONEncoder):
         elif isinstance(o, QgsCoordinateReferenceSystem):
             return {'description': o.description(), 'srsid': o.srsid(), 'proj4': o.toProj4(), 'wkt': o.toWkt(), 'postgisSrid': o.postgisSrid()}
         elif isinstance(o, QgsRectangle):
-            return o.asWktCoordinates()
+            return [o.xMinimum(), o.yMinimum(), o.xMaximum(), o.yMaximum()]
         return JSONEncoder.default(self, o)
