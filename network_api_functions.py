@@ -32,7 +32,8 @@ network_api_functions = {
     # TODO implement optional 'id' GET arg
     '/qgis/mapLayers': lambda iface, _: [200, {name: layer for (name, layer) in QgsMapLayerRegistry.instance().mapLayers().iteritems()}],
     '/qgis/mapLayers/count': lambda iface, _: [200, QgsMapLayerRegistry.instance().count()],
-    # see below for: addRasterLayer, addVectorLayer, remove
+    # see below for: /addRasterLayer, /addVectorLayer,
+    # /mapLayers/remove?id=, /mapLayers/xml?id=
     '/qgis/editableLayers': lambda iface, _: [200, iface.editableLayers()],
     # the following paths require an argument specifying the desired layer
     '/qgis/editableLayers/maximumScale': lambda iface, _: None,
@@ -75,16 +76,61 @@ def get_canvas(iface, request):
 
 network_api_functions['/qgis/mapCanvas'] = get_canvas
 
+def qgis_layer_by_id(id):
+    layer = QgsMapLayerRegistry.instance().mapLayer(id)
+    if layer == None:
+        raise KeyError('No layer with id: ' + id)
+    return layer
+
 # TODO add support for removal of multiple layers. unwise to overload arg name?
 def remove_layers(iface, request):
-    layer = QgsMapLayerRegistry.instance().mapLayer(request.args['id'])
-    if layer == None:
-        return [422, 'No layer with that id']
-    else:
-        QgsMapLayerRegistry.instance().removeMapLayer(layer)
-        return [200, request.args['id']] #'layer' already deleted at this point
+    layer = qgis_layer_by_id(request.args['id'])
+    QgsMapLayerRegistry.instance().removeMapLayer(layer)
+    return [200, request.args['id']] #'layer' already deleted at this point
 
 network_api_functions['/qgis/mapLayers/remove'] = remove_layers
+
+from PyQt4.QtXml import QDomDocument
+
+# overload /xml path: POST loads layer from request, GET returns current xml
+def layer_xml(iface, request):
+    layer = qgis_layer_by_id(request.args['id'])
+    if request.command == 'POST':
+        doc = QDomDocument('xml')
+        # TODO needs testing
+        if doc.setContent(request.headers.get_payload()) and layer.readLayerXml(doc):
+            return None
+        else:
+            return [418] # TODO what error to raise?
+    else:
+        doc = QDomDocument('xml')
+        root = doc.createElement('maplayer')
+        doc.appendChild(root)
+        layer.writeLayerXML(root, doc, '')
+        return [200, doc.toString(), 'text/xml']
+
+network_api_functions['/qgis/mapLayers/xml'] = layer_xml
+
+# same overloading for /style path
+def layer_style(iface, request):
+    layer = qgis_layer_by_id(request.args['id'])
+    if request.command == 'POST':
+        doc = QDomDocument('xml')
+        # TODO needs testing (second argument to readStyle?)
+        if doc.setContent(request.headers.get_payload()) and layer.readStyle(doc):
+            return None
+        else:
+            return [418] # TODO what error to raise?
+    else:
+        doc = QDomDocument('xml')
+        root = doc.createElement('maplayer')
+        doc.appendChild(root)
+        # FIXME 'QgsVectorLayer' object has no attribute 'writeStyle' ??
+        # cf. http://qgis.org/api/2.18/classQgsVectorLayer.html#aca70632c28ef4e5075784e16f4be8efa
+        layer.writeStyle(root, doc, '')
+        return [200, doc.toString(), 'text/xml']
+
+network_api_functions['/qgis/mapLayers/style'] = layer_style
 
 def add_raster_layer(iface, request):
     if request.command == 'POST':

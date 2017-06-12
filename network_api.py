@@ -227,9 +227,9 @@ class NetworkAPIServer(QTcpServer):
         # previous one (in which case the new one will be taken care of when
         # current one finishes, see call to hasPendingConnections() below)
         if self.connection == None:
+            self.connection = self.nextPendingConnection()
             self.nrequests = self.nrequests + 1
             print 'Processing connection #' + str(self.nrequests)
-            self.connection = self.nextPendingConnection()
             self.connection.disconnected.connect(self.connection_ended)
             self.connection.readyRead.connect(self.process_data)
             self.process_data()
@@ -254,7 +254,7 @@ class NetworkAPIServer(QTcpServer):
         # header in a class variable.
         if self.request == None:
             if not self.connection.canReadLine():
-                print 'warning: readyRead() signalled before request line was complete'
+                print 'Warning: readyRead() was signalled before full HTTP request line was available for reading (' + str(self.connection.bytesAvailable()) + ' bytes in buffer)'
                 return
             # new request, parse header
             self.request = NetworkAPIRequest(self.connection)
