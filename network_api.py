@@ -196,8 +196,8 @@ class NetworkAPI:
 # collect imports here, since this class might want to be moved to its own file
 from json import dump
 from PyQt4.QtNetwork import QTcpServer
-from network_api_functions import QGISJSONEncoder
-from network_api_registry import Registry
+from network_api_registry import QGISJSONEncoder, Registry
+import network_api_functions
 from qgis.core import QgsMessageLog
 from qgis.gui import QgsMessageBar
 
@@ -362,6 +362,7 @@ class NetworkAPIRequest(BaseHTTPRequestHandler):
             # further parse request path: detach GET arguments
             parsed_path = urlparse(self.path)
             self.path = parsed_path[2].rstrip('/')
+            print self.path
             # parse key=value pairs, keep keys with blank values
             self.args = dict(parse_qsl(parsed_path[4], True))
         else:

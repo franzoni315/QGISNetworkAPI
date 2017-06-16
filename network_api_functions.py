@@ -15,7 +15,7 @@ from qgis.core import QgsMapLayerRegistry
 # http://qgis.org/api/2.18/classQgisInterface.html
 @networkapi('/qgis/defaultStyleSheetOptions')
 def defaultStylesheetOptions(iface, _):
-    print type(iface.defaultStyleSheetOptions())
+    # dicts get autoconverted to JSON
     return NetworkAPIResult(iface.defaultStyleSheetOptions())
 
 # http://qgis.org/api/2.18/classQgsMapLayerRegistry.html
@@ -95,10 +95,23 @@ def mapCanvas_magnificationFactor(iface, _):
 def mapCanvas_scale(iface, _):
     return NetworkAPIResult(iface.mapCanvas().scale())
 
-    # '/qgis/mapCanvas/zoomIn': lambda iface, _: iface.mapCanvas().zoomIn(),
-    # '/qgis/mapCanvas/zoomOut': lambda iface, _: iface.mapCanvas().zoomOut(),
-    # '/qgis/mapCanvas/zoomScale': lambda iface, request: iface.mapCanvas().zoomScale(float(request.args['scale'])),
-    # '/qgis/mapCanvas/zoomToFullExtent': lambda iface, _: iface.mapCanvas().zoomToFullExtent()
+@networkapi('/qgis/mapCanvas/zoomIn')
+def mapCanvas_zoomIn(iface, _):
+    return NetworkAPIResult(iface.mapCanvas().zoomIn())
+
+@networkapi('/qgis/mapCanvas/zoomOut')
+def mapCanvas_zoomOut(iface, _):
+    return NetworkAPIResult(iface.mapCanvas().zoomOut())
+
+@networkapi('/qgis/mapCanvas/zoomScale')
+def mapCanvas_zoomScale(iface, request):
+    return NetworkAPIResult(iface.mapCanvas().zoomScale(float(request.args['scale'])))
+
+@networkapi('/qgis/mapCanvas/zoomToFullExtent')
+def mapCanvas_zoomToFullExtent(iface, _):
+    return NetworkAPIResult(iface.mapCanvas().zoomToFullExtent())
+
+
 
 from PyQt4.QtXml import QDomDocument
 
@@ -112,7 +125,7 @@ def mapLayers_xml(iface, request):
         if doc.setContent(request.headers.get_payload()) and layer.readLayerXml(doc):
             return NetworkAPIResult()
         else:
-            return NetworkAPIResult(status=418) # TODO what error to raise?
+            return NetworkAPIResult(status=NetworkAPIResult.INVALID_ARGUMENTS)
     else:
         doc = QDomDocument('xml')
         root = doc.createElement('maplayer')
@@ -128,9 +141,9 @@ def mapLayers_style(iface, request):
         doc = QDomDocument('xml')
         # TODO needs testing (second argument to readStyle?)
         if doc.setContent(request.headers.get_payload()) and layer.readStyle(doc):
-            return None
+            return NetworkAPIResult()
         else:
-            return [418] # TODO what error to raise?
+            return NetworkAPIResult(status=NetworkAPIResult.INVALID_ARGUMENTS)
     else:
         doc = QDomDocument('xml')
         root = doc.createElement('maplayer')
@@ -153,7 +166,7 @@ def add_raster_layer(iface, request):
         # http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/loadlayer.html#vector-layers
         filename = request.args['uri']
     # 2 args for local file, 3 args for WMS layer
-    return NetworkAPIResult(iface.addRasterLayer(filename, request.args.get('name', 'NetworkAPILayer')))
+    return NetworkAPIResult(iface.addRasterLayer(filename, request.args.get('name', '')))
     # TODO temp file cleanup
 
 @networkapi('/qgis/addVectorLayer')
@@ -167,24 +180,5 @@ def add_vector_layer(iface, request):
         # try 'uri' GET arg (could actually be file:// or a web http:// url)
         # http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/loadlayer.html#vector-layers
         filename = request.args['uri']
-    return NetworkAPIResult(iface.addVectorLayer(filename, request.args.get('name', 'NetworkAPILayer'), request.args.get('type', 'ogr')))
+    return NetworkAPIResult(iface.addVectorLayer(filename, request.args.get('name', ''), request.args.get('type', 'ogr')))
     # TODO file cleanup
-
-from json import JSONEncoder
-from qgis.core import QgsFeatureIterator, QgsMapLayer, QgsRectangle, QgsCoordinateReferenceSystem, QgsUnitTypes
-
-# TODO: convert python-wrapped C++ enum to string:
-# https://riverbankcomputing.com/pipermail/pyqt/2014-August/034630.html
-# add conversion for LayerType, https://qgis.org/api/classQgsUnitTypes.html
-
-class QGISJSONEncoder(JSONEncoder):
-    def default(self, o):
-        if isinstance(o, QgsMapLayer):
-            return {'name': o.name(), 'type': o.type(), 'publicSource': o.publicSource(), 'crs': o.crs(), 'extent': o.extent(), 'isEditable': o.isEditable()}
-        elif isinstance(o, QgsCoordinateReferenceSystem):
-            return {'description': o.description(), 'srsid': o.srsid(), 'proj4': o.toProj4(), 'postgisSrid': o.postgisSrid()}
-        elif isinstance(o, QgsRectangle):
-            return [o.xMinimum(), o.yMinimum(), o.xMaximum(), o.yMaximum()]
-#        elif isinstance(o, QgsFeatureIterator):
-#            return None # TODO
-        return JSONEncoder.default(self, o)
