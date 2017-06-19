@@ -197,9 +197,12 @@ class NetworkAPI:
 from json import dump
 from PyQt4.QtNetwork import QTcpServer
 from network_api_registry import QGISJSONEncoder, Registry
-import network_api_functions
 from qgis.core import QgsMessageLog
 from qgis.gui import QgsMessageBar
+
+# TODO how to run the two files without actually importing anything?
+import network_api_functions
+import network_api_doc
 
 class NetworkAPIServer(QTcpServer):
     def __init__(self, iface):
@@ -362,7 +365,6 @@ class NetworkAPIRequest(BaseHTTPRequestHandler):
             # further parse request path: detach GET arguments
             parsed_path = urlparse(self.path)
             self.path = parsed_path[2].rstrip('/')
-            print self.path
             # parse key=value pairs, keep keys with blank values
             self.args = dict(parse_qsl(parsed_path[4], True))
         else:
