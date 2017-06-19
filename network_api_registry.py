@@ -43,7 +43,7 @@ class NetworkAPIResult:
 # json.dump() based on the following encoder:
 
 from json import JSONEncoder
-from qgis.core import QgsFeatureIterator, QgsMapLayer, QgsPoint, QgsRectangle, QgsCoordinateReferenceSystem, QgsUnitTypes
+from qgis.core import QgsFeatureIterator, QgsGeometry, QgsMapLayer, QgsPoint, QgsRectangle, QgsCoordinateReferenceSystem, QgsUnitTypes
 
 # TODO: convert python-wrapped C++ enum to string:
 # https://riverbankcomputing.com/pipermail/pyqt/2014-August/034630.html
@@ -51,7 +51,9 @@ from qgis.core import QgsFeatureIterator, QgsMapLayer, QgsPoint, QgsRectangle, Q
 
 class QGISJSONEncoder(JSONEncoder):
     def default(self, o):
-        if isinstance(o, QgsMapLayer):
+        if isinstance(o, QgsGeometry):
+            return o.exportToGeoJson() # TODO precision?
+        elif isinstance(o, QgsMapLayer):
             return {'id': o.id(), 'name': o.name(), 'type': o.type(), 'publicSource': o.publicSource(), 'crs': o.crs(), 'extent': o.extent(), 'isEditable': o.isEditable()}
         elif isinstance(o, QgsCoordinateReferenceSystem):
             return {'description': o.description(), 'srsid': o.srsid(), 'proj4': o.toProj4(), 'postgisSrid': o.postgisSrid()}
