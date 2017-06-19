@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>494</width>
+    <width>501</width>
     <height>300</height>
    </rect>
   </property>
@@ -14,70 +14,72 @@
    <string>Network API</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="2">
-    <widget class="QLabel" name="label_4">
+   <item row="0" column="1">
+    <widget class="QLabel" name="label_status">
      <property name="text">
-      <string>TODO</string>
+      <string>Status</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="2">
+    <widget class="QLabel" name="status">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string/>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
      </property>
     </widget>
    </item>
-   <item row="0" column="1">
-    <widget class="QLabel" name="label_3">
-     <property name="text">
-      <string>Status</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="2">
-    <widget class="QCheckBox" name="checkBox_autostart">
-     <property name="enabled">
-      <bool>false</bool>
+   <item row="0" column="3">
+    <widget class="QPushButton" name="toggle">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
      </property>
      <property name="text">
-      <string>Automatically start listening on QGIS startup</string>
+      <string>Start listening</string>
      </property>
-     <property name="checked">
+     <property name="checkable">
       <bool>true</bool>
      </property>
-    </widget>
-   </item>
-   <item row="2" column="2">
-    <widget class="QCheckBox" name="checkBox">
-     <property name="enabled">
+     <property name="checked">
       <bool>false</bool>
      </property>
-     <property name="text">
-      <string>Log incoming requests to QGIS status bar</string>
+     <property name="flat">
+      <bool>false</bool>
      </property>
     </widget>
    </item>
-   <item row="3" column="1">
-    <widget class="QLabel" name="label">
+   <item row="1" column="1">
+    <widget class="QLabel" name="label_port">
      <property name="text">
       <string>Port</string>
      </property>
     </widget>
    </item>
-   <item row="3" column="2">
-    <widget class="QLineEdit" name="lineEdit">
+   <item row="1" column="2" colspan="2">
+    <widget class="QLineEdit" name="port">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="inputMethodHints">
       <set>Qt::ImhDigitsOnly</set>
      </property>
-     <property name="text">
-      <string>8090</string>
-     </property>
     </widget>
    </item>
-   <item row="4" column="2">
-    <widget class="QCheckBox" name="checkBox_remote">
+   <item row="2" column="2" colspan="2">
+    <widget class="QCheckBox" name="remote_connections">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="text">
       <string>Allow remote connections</string>
@@ -87,15 +89,15 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="1">
-    <widget class="QLabel" name="label_2">
+   <item row="3" column="1">
+    <widget class="QLabel" name="label_security">
      <property name="text">
       <string>Security</string>
      </property>
     </widget>
    </item>
-   <item row="5" column="2">
-    <widget class="QComboBox" name="comboBox">
+   <item row="3" column="2" colspan="2">
+    <widget class="QComboBox" name="security">
      <property name="autoFillBackground">
       <bool>false</bool>
      </property>
@@ -116,20 +118,37 @@
      </item>
     </widget>
    </item>
-   <item row="6" column="1">
+   <item row="4" column="1">
     <widget class="QLabel" name="label_auth">
      <property name="text">
       <string>Auth token</string>
      </property>
     </widget>
    </item>
-   <item row="7" column="1" colspan="2">
-    <widget class="QDialogButtonBox" name="button_box">
+   <item row="4" column="2" colspan="2">
+    <widget class="QLineEdit" name="auth">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="2" colspan="2">
+    <widget class="QCheckBox" name="log">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Log plugin activity to QGIS status bar</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1" colspan="3">
+    <widget class="QDialogButtonBox" name="buttons">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Apply|QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
@@ -138,7 +157,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>button_box</sender>
+   <sender>buttons</sender>
    <signal>accepted()</signal>
    <receiver>NetworkAPIDialogBase</receiver>
    <slot>accept()</slot>
@@ -154,7 +173,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>button_box</sender>
+   <sender>buttons</sender>
    <signal>rejected()</signal>
    <receiver>NetworkAPIDialogBase</receiver>
    <slot>reject()</slot>

@@ -24,18 +24,46 @@
 import os
 
 from PyQt4 import QtGui, uic
+from network_api_settings import NetworkAPISettings
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'network_api_dialog_base.ui'))
 
 
 class NetworkAPIDialog(QtGui.QDialog, FORM_CLASS):
+
+    settings = NetworkAPISettings()
+
     def __init__(self, parent=None):
         """Constructor."""
         super(NetworkAPIDialog, self).__init__(parent)
-        # Set up the user interface from Designer.
-        # After setupUI you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>
+        self.buttons.clicked.connect(self.handleButtonClick)
+        self.loadSettings()
+
+    def loadSettings(self):
+        self.port.setText(str(NetworkAPIDialog.settings.port()))
+        self.remote_connections.setChecked(NetworkAPIDialog.settings.remote_connections())
+        self.security.setCurrentIndex(NetworkAPIDialog.settings.security())
+        self.auth.setText(NetworkAPIDialog.settings.auth())
+        self.log.setChecked(NetworkAPIDialog.settings.log())
+
+    def saveSettings(self):
+        NetworkAPIDialog.settings.setValue('port', self.port.text())
+        NetworkAPIDialog.settings.setValue('remote_connections', self.remote_connections.isChecked())
+        NetworkAPIDialog.settings.setValue('security', self.security.currentIndex())
+        NetworkAPIDialog.settings.setValue('auth', self.auth.text())
+        NetworkAPIDialog.settings.setValue('log', self.log.isChecked())
+
+    def handleButtonClick(self, button):
+        sb = self.buttons.standardButton(button)
+        if sb == QtGui.QDialogButtonBox.Apply:
+            print('Apply clicked')
+            self.saveSettings()
+        elif sb == QtGui.QDialogButtonBox.Cancel:
+            print('Cancel clicked')
+        elif sb == QtGui.QDialogButtonBox.Ok:
+            self.saveSettings()
+            print('Ok clicked')
