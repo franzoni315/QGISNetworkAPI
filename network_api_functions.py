@@ -15,18 +15,27 @@ from qgis.core import QgsMapLayerRegistry
 # http://qgis.org/api/2.18/classQgisInterface.html
 @networkapi('/qgis/defaultStyleSheetOptions')
 def defaultStylesheetOptions(iface, _):
-    # dicts get autoconverted to JSON
+    """Return changeable options built from settings and/or defaults."""
     return NetworkAPIResult(iface.defaultStyleSheetOptions())
 
-# http://qgis.org/api/2.18/classQgsMapLayerRegistry.html
-@networkapi('/qgis/mapLayers')
-def mapLayers(iface, request):
-    # TODO implement optional 'id' GET arg
-    return NetworkAPIResult(QgsMapLayerRegistry.instance().mapLayers())
 
+# http://qgis.org/api/2.18/classQgsMapLayerRegistry.html
 @networkapi('/qgis/mapLayers/count')
 def mapLayers_count(iface, _):
+    """Returns the total number of registered layers, visible or not."""
     return NetworkAPIResult(QgsMapLayerRegistry.instance().count())
+
+@networkapi('/qgis/mapLayers')
+def mapLayers(iface, request):
+    """
+    Returns information about all registered layers by layer ID.
+
+    For information on the currently visible layers and their ordering, see /qgis/mapCanvas/layers
+
+    Returns:
+        A JSON object containing id : layer pairs.
+    """
+    return NetworkAPIResult(QgsMapLayerRegistry.instance().mapLayers())
 
 # helper function
 def qgis_layer_by_id(id):
@@ -35,7 +44,24 @@ def qgis_layer_by_id(id):
         raise KeyError('No layer with id: ' + id)
     return layer
 
+@networkapi('/qgis/mapLayer')
+def mapLayer(iface, request):
+    """
+    Return information about the layer with the given ID.
+
+    GET arguments:
+        id (string): ID of layer to retrieve
+
+    Returns:
+        A JSON object containing information on the layer with the given ID.
+    """
+    return NetworkAPIResult(qgis_layer_by_id(request.args['id']))
+
 # the following paths require 'id' an argument specifying the desired layer
+@networkapi('/qgis/mapLayers/fields')
+def mapLayers_fields(iface, request):
+    layer = qgis_layer_by_id(request.args['id'])
+    return NetworkAPIResult(layer.fields())
 
 # TODO add support for removal of multiple layers. unwise to overload arg name?
 @networkapi('/qgis/mapLayers/remove')
@@ -51,6 +77,10 @@ def mapLayers_getFeatures(iface, request):
     layer = qgis_layer_by_id(request.args['id'])
     return NetworkAPIResult(layer.getFeatures(None))
 
+@networkapi('/qgis/mapLayers/selectedFeatures')
+def mapLayers_selectedFeatures(iface, request):
+    layer = qgis_layer_by_id(request.args['id'])
+    return NetworkAPIResult(layer.selectedFeatures())
 
 # http://qgis.org/api/2.18/classQgsMapCanvas.html
 import os
@@ -59,10 +89,29 @@ from PyQt4.QtGui import QPixmap
 
 @networkapi('/qgis/mapCanvas')
 def mapCanvas(iface, request):
-    """ Return the currently visible content of the map canvas as an image.
-    The 'format' argument (default 'png') can be any image format string
-    supported by QGIS' saveAsImage(), with the MIME type of the HTTP response
-    simply set to 'image/' + format."""
+    """
+    Return information about the map canvas, such as visible area, projection etc.
+    """
+    return NetworkAPIResult(iface.mapCanvas())
+
+# overload with POST?
+# @networkapi('/qgis/mapCanvas/xml')
+# def mapCanvas_xml(iface, request):
+#     doc = QDomDocument('xml')
+#     iface.mapCanvas().writeProject(doc)
+#     return NetworkAPIResult(doc.toString(), 'text/xml')
+
+@networkapi('/qgis/mapCanvas/image')
+def mapCanvas_image(iface, request):
+    """
+    Return the currently visible content of the map canvas as an image.
+
+    GET arguments:
+        format (optional): any image format string supported by QGIS' saveAsImage() (default: 'png')
+
+    Returns:
+        An image the same size as the currently visible map canvas. The content-type of the response is set to 'image/' + format.
+    """
     ext = request.args.get('format', 'png')
     tmpfile, tmpfilename = mkstemp('.' + ext)
     os.close(tmpfile)
@@ -87,28 +136,67 @@ def mapCanvas_extent(iface, _):
 def mapCanvas_fullExtent(iface, _):
     return NetworkAPIResult(iface.mapCanvas().fullExtent())
 
+@networkapi('/qgis/mapCanvas/layer')
+def mapCanvas_layer(iface, request):
+    """
+    Return the map layer at position index in the layer stack.
+
+    GET arguments:
+        index (int): position index in the layer stack, between 0 and layerCount-1
+    """
+    return NetworkAPIResult(iface.mapCanvas().layer(int(request.args['index'])))
+
+@networkapi('/qgis/mapCanvas/layerCount')
+def mapCanvas_layerCount(iface, _):
+    """
+    Return number of layers on the map that are set visible.
+
+    For the total number of registered layers, see /qgis/mapLayers/count
+    """
+    return NetworkAPIResult(iface.mapCanvas().layerCount())
+
+@networkapi('/qgis/mapCanvas/layers')
+def mapCanvas_layers(iface, _):
+    """
+    Return list of layers within map canvas that are set visible.
+
+    For all registered layers, see /qgis/mapLayers
+    """
+    return NetworkAPIResult(iface.mapCanvas().layers())
+
 @networkapi('/qgis/mapCanvas/magnificationFactor')
 def mapCanvas_magnificationFactor(iface, _):
+    """Returns the magnification factor."""
     return NetworkAPIResult(iface.mapCanvas().magnificationFactor())
 
 @networkapi('/qgis/mapCanvas/scale')
 def mapCanvas_scale(iface, _):
+    """Get the last reported scale of the canvas."""
     return NetworkAPIResult(iface.mapCanvas().scale())
 
 @networkapi('/qgis/mapCanvas/zoomIn')
 def mapCanvas_zoomIn(iface, _):
+    """Zoom in with fixed factor."""
     return NetworkAPIResult(iface.mapCanvas().zoomIn())
 
 @networkapi('/qgis/mapCanvas/zoomOut')
 def mapCanvas_zoomOut(iface, _):
+    """Zoom out with fixed factor."""
     return NetworkAPIResult(iface.mapCanvas().zoomOut())
 
 @networkapi('/qgis/mapCanvas/zoomScale')
 def mapCanvas_zoomScale(iface, request):
+    """
+    Zoom to a specific scale.
+
+    GET arguments:
+        scale (float): target scale
+    """
     return NetworkAPIResult(iface.mapCanvas().zoomScale(float(request.args['scale'])))
 
 @networkapi('/qgis/mapCanvas/zoomToFullExtent')
 def mapCanvas_zoomToFullExtent(iface, _):
+    """Zoom to the full extent of all layers."""
     return NetworkAPIResult(iface.mapCanvas().zoomToFullExtent())
 
 

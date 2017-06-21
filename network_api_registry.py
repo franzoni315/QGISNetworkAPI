@@ -43,7 +43,9 @@ class NetworkAPIResult:
 # json.dump() based on the following encoder:
 
 from json import JSONEncoder
-from qgis.core import QgsFeatureIterator, QgsGeometry, QgsMapLayer, QgsPoint, QgsRectangle, QgsCoordinateReferenceSystem, QgsUnitTypes
+from PyQt4.QtCore import QPyNullVariant
+from qgis.core import QgsFeature, QgsFeatureIterator, QgsFields, QgsGeometry, QgsMapLayer, QgsPoint, QgsRectangle, QgsCoordinateReferenceSystem, QgsUnitTypes
+from qgis.gui import QgsMapCanvas
 
 # TODO: convert python-wrapped C++ enum to string:
 # https://riverbankcomputing.com/pipermail/pyqt/2014-August/034630.html
@@ -51,8 +53,15 @@ from qgis.core import QgsFeatureIterator, QgsGeometry, QgsMapLayer, QgsPoint, Qg
 
 class QGISJSONEncoder(JSONEncoder):
     def default(self, o):
-        if isinstance(o, QgsGeometry):
-            return o.exportToGeoJson() # TODO precision?
+        if isinstance(o, QgsFeature):
+            return {'id': o.id(), 'attributes': dict(zip([field.name() for field in o.fields().toList()], o.attributes())), 'geometry': o.geometry() }
+        elif isinstance(o, QgsFields): # 'isNumeric': f.isNumeric(),  from 2.18
+            return [{'name': f.name(), 'comment': f.comment(), 'length': f.length() } for f in o.toList()]
+        elif isinstance(o, QgsGeometry):
+            # FIXME this actually returns a string, not a json structure...
+            return o.exportToGeoJSON() # TODO precision?
+        elif isinstance(o, QgsMapCanvas):
+            return {'extent': o.extent(), 'crs': o.mapSettings().destinationCrs(), 'mapUnits': 0 } # TODO
         elif isinstance(o, QgsMapLayer):
             return {'id': o.id(), 'name': o.name(), 'type': o.type(), 'publicSource': o.publicSource(), 'crs': o.crs(), 'extent': o.extent(), 'isEditable': o.isEditable()}
         elif isinstance(o, QgsCoordinateReferenceSystem):
@@ -61,4 +70,7 @@ class QGISJSONEncoder(JSONEncoder):
             return [o.x(), o.y()]
         elif isinstance(o, QgsRectangle):
             return [o.xMinimum(), o.yMinimum(), o.xMaximum(), o.yMaximum()]
+        elif isinstance(o, QPyNullVariant):
+            # Qt's very own 'null'
+            return None
         return JSONEncoder.default(self, o)
