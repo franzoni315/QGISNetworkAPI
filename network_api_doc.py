@@ -1,21 +1,27 @@
 from network_api_registry import Registry, networkapi, NetworkAPIResult
 from string import join
-# 
-def wrap_in_html(definitions):
-    return '<!DOCTYPE html><html lang="en"><head><title>QGIS Network API</title></head><body><h1>QGIS Network API plugin</h1><dl>' + join(definitions, sep='\n') + '</dl></body></html>'
 
-def wrap_command(path, function):
-    return '<dt><a href="/api?path=' + path + '">' + path + '</a></dt><dd>' + str(function.__doc__) + '</dd>'
+def wrap_in_html(body):
+    return '<!DOCTYPE html><html lang="en"><head><title>QGIS Network API</title><style>dt { font-family: monospace; }</style></head><body><h1>QGIS Network API plugin</h1>' + body + '</body></html>'
+
+def wrap_command(path, function, short=False):
+    if short:
+        if function.__doc__:
+            return '<dt><a href="/api?path=' + path + '">' + path + '</a></dt><dd>' + function.__doc__.splitlines()[0] + '</dd>'
+        else:
+            return '<dt>' + path + '</dt><dd>not documented</dd>'
+    else:
+         return '<dt>' + path + '</dt><dd><pre>' + function.__doc__ + '</pre><a href="' + path + '">go there</a></dd>'
 
 @networkapi('/api')
 def api_docs(iface, request):
-    """"""
+    """Display documentation for all API paths in human-readable HTML. (This documentation page.)"""
     # check 'path' arg
     path = request.args.get('path')
     if path:
-        # return documentation for specific path only
-        doc = [wrap_command(path, Registry.instance().paths[path])]
-        # if not found: look for paths that have given prefix?
+        # return full documentation for specific path only
+        body = '<p><a href="/api">back</a></p>' + wrap_command(path, Registry.instance().paths[path])
+        # TODO if not found: look for paths that have given prefix?
     else:
-        doc = [wrap_command(path, cmd) for (path, cmd) in sorted(Registry.instance().paths.items())]
-    return NetworkAPIResult(wrap_in_html(doc), 'text/html')
+        body = '<p>HTTP request paths currently exposed by the Network API plugin. Click on a path for details on arguments and return values.</p>' + join([wrap_command(path, cmd, True) for (path, cmd) in sorted(Registry.instance().paths.items())], sep='\n')
+    return NetworkAPIResult(wrap_in_html(body), 'text/html')
