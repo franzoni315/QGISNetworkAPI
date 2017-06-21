@@ -1,5 +1,5 @@
 from json import dump
-from PyQt4.QtNetwork import QTcpServer
+from PyQt4.QtNetwork import QHostAddress, QTcpServer
 from network_api_dialog import NetworkAPIDialog
 from network_api_registry import QGISJSONEncoder, Registry
 from qgis.core import QgsMessageLog
@@ -13,6 +13,11 @@ class NetworkAPIServer(QTcpServer):
     def __init__(self, iface):
         QTcpServer.__init__(self)
         self.iface = iface
+        self.iface.newProjectCreated.connect(self.stopServer)
+        # TODO: read project-specific on/off setting instead
+        self.iface.projectRead.connect(self.stopServer)
+        # to save clicks while developing: immediately start server on load
+        self.startServer(NetworkAPIDialog.settings.port())
 
     def log(self, message, level=QgsMessageLog.INFO):
         QgsMessageLog.logMessage(message, 'NetworkAPI', level=level)
@@ -36,17 +41,23 @@ class NetworkAPIServer(QTcpServer):
         self.nrequests = 0
 
         self.newConnection.connect(self.new_connection)
-        if self.listen(port=port):
+        if self.listen(QHostAddress.Any, port):
             self.log('Listening for Network API requests on port ' + str(self.serverPort()))
         else:
-            self.log('Error: failed to open socket on port ' + str(port), QgsMessageLog.CRITICAL)
+            self.status('Error: failed to open socket on port ' + str(port), QgsMessageBar.CRITICAL)
 
     def new_connection(self):
         # only accept connection if we're not still busy processing the
         # previous one (in which case the new one will be taken care of when
-        # current one finishes, see call to hasPendingConnections() below)
+        # current one finishes, see call to hasPendingConnections() in
+        # connection_ended() below)
         if self.connection == None:
-            self.connection = self.nextPendingConnection()
+            cxn = self.nextPendingConnection()
+            if not NetworkAPIDialog.settings.remote_connections() and cxn.peerAddress() != QHostAddress.LocalHost: # FIXME .LocalHostIPv6?
+                self.status('Refusing remote connection from ' + cxn.peerAddress().toString(), QgsMessageBar.WARNING)
+                cxn.close()
+                return
+            self.connection = cxn
             self.nrequests = self.nrequests + 1
             self.log('Processing connection #' + str(self.nrequests) + ' (' + self.connection.peerAddress().toString() + ')')
             self.connection.disconnected.connect(self.connection_ended)

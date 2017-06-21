@@ -67,8 +67,6 @@ class NetworkAPI:
         self.toolbar.setObjectName(u'NetworkAPI')
 
         self.serversingleton = NetworkAPIServer(self.iface)
-        # to save clicks while developing: immediately start server on load
-        self.serversingleton.startServer(NetworkAPIDialog.settings.port())
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
