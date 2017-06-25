@@ -22,7 +22,7 @@ curl --silent http://localhost:8090/qgis/mapLayers
 
 ``` bash
 # add some vector data from the web
-curl --silent 'http://localhost:8090/qgis/addVectorLayer?uri=https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson&name=uri-layer'
+curl --silent 'http://localhost:8090/qgis/addVectorLayer?url=https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson&name=url-layer'
 ```
 
     ## {
@@ -30,19 +30,20 @@ curl --silent 'http://localhost:8090/qgis/addVectorLayer?uri=https://d2ad6b4ur7y
     ##     "postgisSrid": 4326, 
     ##     "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
     ##     "srsid": 3452, 
-    ##     "description": "WGS 84", 
-    ##     "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+    ##     "description": "WGS 84"
     ##   }, 
-    ##   "name": "uri-layer", 
-    ##   "isEditable": false, 
-    ##   "publicSource": "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson", 
+    ##   "valid": true, 
+    ##   "name": "url-layer", 
     ##   "extent": [
     ##     -175.22056447761656, 
     ##     -89.99999981438727, 
     ##     179.21664709402887, 
     ##     78.21668438639699
     ##   ], 
-    ##   "type": 0
+    ##   "publicSource": "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson", 
+    ##   "type": 0, 
+    ##   "id": "url_layer20170625163734828", 
+    ##   "isEditable": false
     ## }
 
 ``` bash
@@ -58,19 +59,20 @@ curl --silent -d @ne_50m_populated_places.geojson http://localhost:8090/qgis/add
     ##     "postgisSrid": 4326, 
     ##     "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
     ##     "srsid": 3452, 
-    ##     "description": "WGS 84", 
-    ##     "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+    ##     "description": "WGS 84"
     ##   }, 
+    ##   "valid": true, 
     ##   "name": "geojson-layer", 
-    ##   "isEditable": false, 
-    ##   "publicSource": "/tmp/tmplhLaBv.geojson", 
     ##   "extent": [
     ##     -175.22056447761656, 
     ##     -89.99999981438727, 
     ##     179.21664709402887, 
     ##     78.21668438639699
     ##   ], 
-    ##   "type": 0
+    ##   "publicSource": "/tmp/tmpnQDyXk", 
+    ##   "type": 0, 
+    ##   "id": "geojson_layer20170625163738567", 
+    ##   "isEditable": false
     ## }
 
 ``` bash
@@ -79,43 +81,45 @@ curl --silent http://localhost:8090/qgis/mapLayers
 ```
 
     ## {
-    ##   "uri_layer20170611151337103": {
+    ##   "geojson_layer20170625163738567": {
     ##     "crs": {
     ##       "postgisSrid": 4326, 
     ##       "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
     ##       "srsid": 3452, 
-    ##       "description": "WGS 84", 
-    ##       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
+    ##       "description": "WGS 84"
     ##     }, 
-    ##     "name": "uri-layer", 
-    ##     "isEditable": false, 
-    ##     "publicSource": "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson", 
-    ##     "extent": [
-    ##       -175.22056447761656, 
-    ##       -89.99999981438727, 
-    ##       179.21664709402887, 
-    ##       78.21668438639699
-    ##     ], 
-    ##     "type": 0
-    ##   }, 
-    ##   "geojson_layer20170611151340105": {
-    ##     "crs": {
-    ##       "postgisSrid": 4326, 
-    ##       "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
-    ##       "srsid": 3452, 
-    ##       "description": "WGS 84", 
-    ##       "wkt": "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]"
-    ##     }, 
+    ##     "valid": true, 
     ##     "name": "geojson-layer", 
-    ##     "isEditable": false, 
-    ##     "publicSource": "/tmp/tmplhLaBv.geojson", 
     ##     "extent": [
     ##       -175.22056447761656, 
     ##       -89.99999981438727, 
     ##       179.21664709402887, 
     ##       78.21668438639699
     ##     ], 
-    ##     "type": 0
+    ##     "publicSource": "/tmp/tmpnQDyXk", 
+    ##     "type": 0, 
+    ##     "id": "geojson_layer20170625163738567", 
+    ##     "isEditable": false
+    ##   }, 
+    ##   "url_layer20170625163734828": {
+    ##     "crs": {
+    ##       "postgisSrid": 4326, 
+    ##       "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
+    ##       "srsid": 3452, 
+    ##       "description": "WGS 84"
+    ##     }, 
+    ##     "valid": true, 
+    ##     "name": "url-layer", 
+    ##     "extent": [
+    ##       -175.22056447761656, 
+    ##       -89.99999981438727, 
+    ##       179.21664709402887, 
+    ##       78.21668438639699
+    ##     ], 
+    ##     "publicSource": "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson", 
+    ##     "type": 0, 
+    ##     "id": "url_layer20170625163734828", 
+    ##     "isEditable": false
     ##   }
     ## }
 
@@ -136,7 +140,7 @@ curl --silent http://localhost:8090/qgis/mapCanvas/zoomToFullExtent
 curl --silent http://localhost:8090/qgis/mapCanvas/extent
 ```
 
-    ## [
+    ## null[
     ##   -287.00476950471307, 
     ##   -94.20541691940687, 
     ##   291.0008521211254, 
@@ -145,20 +149,20 @@ curl --silent http://localhost:8090/qgis/mapCanvas/extent
 
 ``` bash
 # read current canvas content
-wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas
-file "mapCanvas"
+wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/image
+file "image"
 ```
 
-    ## 2017-06-11 15:13:41 URL:http://127.0.0.1:8090/qgis/mapCanvas [68643] -> "mapCanvas" [1]
-    ## mapCanvas: PNG image data, 1093 x 334, 8-bit/color RGBA, non-interlaced
+    ## 2017-06-25 16:37:40 URL:http://127.0.0.1:8090/qgis/mapCanvas/image [67796] -> "image" [1]
+    ## image: PNG image data, 1093 x 334, 8-bit/color RGBA, non-interlaced
 
 ``` bash
-wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas?format=jpg
-file "mapCanvas?format=jpg"
+wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/image?format=jpg
+file "image?format=jpg"
 ```
 
-    ## 2017-06-11 15:13:42 URL:http://127.0.0.1:8090/qgis/mapCanvas?format=jpg [49932] -> "mapCanvas?format=jpg" [1]
-    ## mapCanvas?format=jpg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 96x96, segment length 16, baseline, precision 8, 1093x334, frames 3
+    ## 2017-06-25 16:37:40 URL:http://127.0.0.1:8090/qgis/mapCanvas/image?format=jpg [49470] -> "image?format=jpg" [1]
+    ## image?format=jpg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 96x96, segment length 16, baseline, precision 8, 1093x334, frames 3
 
 ``` bash
 # retrieve current scale
@@ -170,14 +174,12 @@ curl --silent http://localhost:8090/qgis/mapCanvas/scale
 ``` bash
 # some more canvas manipulation
 curl --silent http://localhost:8090/qgis/mapCanvas/zoomIn
-curl --silent http://localhost:8090/qgis/mapCanvas/scale
 ```
 
     ## 103290026.16653717
 
 ``` bash
 curl --silent http://localhost:8090/qgis/mapCanvas/zoomScale?scale=1234567.8
-curl --silent http://localhost:8090/qgis/mapCanvas/scale
 ```
 
     ## 1234567.800000001
@@ -189,6 +191,6 @@ curl --silent http://localhost:8090/qgis/mapCanvas/scale
 Related projects
 ----------------
 
-The motivation behind this plugin is to make QGIS interface components available and scriptable from other mapping-averse programming language such as R. See <https://gitlab.com/b-rowlingson/pqgisr>
+The motivation behind this plugin is to make QGIS interface components available and scriptable from other mapping-averse programming language such as R. Development versions of the corresponding R package making use of this Network API can be found [here](https://gitlab.com/qgisapi/rqgisapi).
 
 For using QGIS processing routines from R (geared towards performing large scale data mangling without making use of QGIS UI components, with a significant overhead per processing invocation), have a look at the [RQGIS package](https://github.com/jannes-m/RQGIS).

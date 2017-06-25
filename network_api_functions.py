@@ -8,9 +8,14 @@
 # the functions should return an instance of NetworkAPIResult
 
 from network_api_registry import networkapi, NetworkAPIResult
-from qgis.core import QgsMapLayerRegistry
+from qgis.core import QgsMapLayerRegistry, QgsVectorFileWriter
 
 # TODO add simple function to simplify wrapping argument-free function calls
+
+@networkapi('/qgis/supportedFiltersAndFormats')
+def supportedFiltersAndFormats(_, _2):
+    """Returns a dictionary of supported vector formats with format filter string as key and OGR format key as value."""
+    return NetworkAPIResult(QgsVectorFileWriter.supportedFiltersAndFormats())
 
 # http://qgis.org/api/2.18/classQgisInterface.html
 @networkapi('/qgis/defaultStyleSheetOptions')
@@ -18,6 +23,65 @@ def defaultStylesheetOptions(iface, _):
     """Return changeable options built from settings and/or defaults."""
     return NetworkAPIResult(iface.defaultStyleSheetOptions())
 
+@networkapi('/qgis/addRasterLayer')
+def addRasterLayer(iface, request):
+    """
+    Add a new raster layer to QGIS.
+
+    The vector data can be provided in two ways:
+
+    1. from an external file, by providing a WMS url as a 'url' GET argument, in combination with a valid 'providerKey'
+
+    2. as raster data in the request body of a POST request
+
+    GET arguments:
+        name (string, optional): name for the new layer
+        url (string, optional): url to WMS dataset to be added as a new layer
+        providerKey (string, optional): QGIS provider key (default: 'ogr')
+
+    Returns:
+        A JSON object containing information on the layer that was just added.
+    """
+    if request.command == 'POST':
+        # TODO check get_payload() for multipart?
+        tmpfile, filename = mkstemp()
+        os.write(tmpfile, request.headers.get_payload())
+        os.close(tmpfile)
+        return NetworkAPIResult(iface.addRasterLayer(filename, request.args.get('name', '')))
+    else:
+        # 3 args for WMS layer: url, name, providerkey
+        return NetworkAPIResult(iface.addRasterLayer(request.args['url'], request.args.get('name', ''), request.args['providerKey']))
+
+@networkapi('/qgis/addVectorLayer')
+def addVectorLayer(iface, request):
+    """
+    Add a new vector layer to QGIS.
+
+    The vector data can be provided in two ways:
+
+    1. from an external file, by passing a QGIS provider string as a 'url' GET argument
+
+    2. as GeoJSON data in the request body of a POST request (support for other formats to be added later)
+
+    GET arguments:
+        name (string, optional): name for the new layer
+        url (string, optional): QGIS provider string to a local or external vector data source
+        providerKey (string, optional): QGIS provider key (default: 'ogr')
+
+    Returns:
+        A JSON object containing information on the layer that was just added.
+    """
+    if request.command == 'POST':
+        # TODO check get_payload() for multipart?
+        tmpfile, filename = mkstemp()
+        os.write(tmpfile, request.headers.get_payload())
+        os.close(tmpfile)
+        # TODO this file should probably not be temporary but actually stay on disk?
+    else:
+        # try 'url' GET arg (could actually be file:// or a web http:// url)
+        # http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/loadlayer.html#vector-layers
+        filename = request.args['url']
+    return NetworkAPIResult(iface.addVectorLayer(filename, request.args.get('name', ''), request.args.get('providerKey', 'ogr')))
 
 # http://qgis.org/api/2.18/classQgsMapLayerRegistry.html
 @networkapi('/qgis/mapLayers/count')
@@ -44,6 +108,23 @@ def qgis_layer_by_id(id):
         raise KeyError('No layer with id: ' + id)
     return layer
 
+# TODO add support for removal of multiple layers. unwise to overload arg name?
+@networkapi('/qgis/mapLayers/removeMapLayer')
+def mapLayers_removeMapLayer(iface, request):
+    """
+    Remove a layer from the registry by layer ID.
+
+    The specified layer will be removed from the registry. If the registry has ownership of the layer then it will also be deleted.
+
+    GET arguments:
+        id (string): ID of the layer to be removed
+    """
+    layer = qgis_layer_by_id(request.args['id'])
+    QgsMapLayerRegistry.instance().removeMapLayer(layer)
+    # 'layer' object is already deleted at this point?
+    return NetworkAPIResult(request.args['id'])
+
+# http://qgis.org/api/2.18/classQgsMapLayer.html
 @networkapi('/qgis/mapLayer')
 def mapLayer(iface, request):
     """
@@ -60,31 +141,31 @@ def mapLayer(iface, request):
     return NetworkAPIResult(qgis_layer_by_id(request.args['id']))
 
 # the following paths require 'id' an argument specifying the desired layer
-@networkapi('/qgis/mapLayers/fields')
-def mapLayers_fields(iface, request):
+@networkapi('/qgis/mapLayer/fields')
+def mapLayer_fields(iface, request):
+    """
+    Returns the list of fields of a layer.
+
+    This also includes fields which have not yet been saved to the provider.
+
+    GET arguments:
+        id (string): ID of layer whose fields to retrieve
+    """
     layer = qgis_layer_by_id(request.args['id'])
     return NetworkAPIResult(layer.fields())
 
-# TODO add support for removal of multiple layers. unwise to overload arg name?
-@networkapi('/qgis/mapLayers/remove')
-def mapLayers_remove(iface, request):
-    layer = qgis_layer_by_id(request.args['id'])
-    QgsMapLayerRegistry.instance().removeMapLayer(layer)
-    # 'layer' object is already deleted at this point?
-    return NetworkAPIResult(request.args['id'])
-
 # TODO parse QgsFeatureRequest from POST body
-@networkapi('/qgis/mapLayers/getFeatures')
-def mapLayers_getFeatures(iface, request):
+@networkapi('/qgis/mapLayer/getFeatures')
+def mapLayer_getFeatures(iface, request):
     layer = qgis_layer_by_id(request.args['id'])
     return NetworkAPIResult(layer.getFeatures(None))
 
-@networkapi('/qgis/mapLayers/selectedFeatures')
-def mapLayers_selectedFeatures(iface, request):
+@networkapi('/qgis/mapLayer/selectedFeatures')
+def mapLayer_selectedFeatures(iface, request):
     """
     Return information about the currently selected features from the given vector layer.
 
-    To retrieve the geometry of all selected features, see /qgis/mapLayers/selectedFeatures/geometry
+    To retrieve the geometry of all selected features, see /qgis/mapLayer/selectedFeatures/geometry
 
     GET arguments:
         id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
@@ -101,13 +182,71 @@ def mapLayers_selectedFeatures(iface, request):
     # elements, maybe retrieve features via their id instead?
     return NetworkAPIResult(layer.selectedFeatures())
 
-@networkapi('/qgis/mapLayers/selectedFeatures/geometry')
-def mapLayers_selectedFeatures_geometry(iface, request):
+@networkapi('/qgis/mapLayer/selectedFeatures/geometry')
+def mapLayer_selectedFeatures_geometry(iface, request):
     if request.args.get('id'):
         layer = qgis_layer_by_id(request.args['id'])
     else:
         layer = iface.mapCanvas().currentLayer()
     return NetworkAPIResult([f.geometry() for f in layer.selectedFeatures()])
+
+from PyQt4.QtXml import QDomDocument
+
+# overload /xml path: POST loads layer from request, GET returns current xml
+@networkapi('/qgis/mapLayer/xml')
+def mapLayer_xml(iface, request):
+    """
+    Retrieve or set the definition of the layer with the given id.
+
+    GET arguments:
+        id (string): ID of layer whose definition to retrieve or set
+
+    Returns:
+        The XML definition for the layer with the given ID.
+    """
+    layer = qgis_layer_by_id(request.args['id'])
+    if request.command == 'POST':
+        doc = QDomDocument('xml')
+        # TODO needs testing
+        if doc.setContent(request.headers.get_payload()) and layer.readLayerXml(doc):
+            return NetworkAPIResult()
+        else:
+            return NetworkAPIResult(status=NetworkAPIResult.INVALID_ARGUMENTS)
+    else:
+        doc = QDomDocument('xml')
+        root = doc.createElement('maplayer')
+        doc.appendChild(root)
+        layer.writeLayerXML(root, doc, '')
+        return NetworkAPIResult(doc.toString(), 'text/xml')
+
+# same overloading for /style path
+@networkapi('/qgis/mapLayer/style')
+def mapLayer_style(iface, request):
+    """
+    Retrieve or set the style for the layer with the given id.
+
+    GET arguments:
+        id (string): ID of layer whose stylesheet to retrieve or set
+
+    Returns:
+        The XML style definition for the layer with the given ID.
+    """
+    layer = qgis_layer_by_id(request.args['id'])
+    if request.command == 'POST':
+        doc = QDomDocument('xml')
+        # TODO needs testing (second argument to readStyle?)
+        if doc.setContent(request.headers.get_payload()) and layer.readStyle(doc):
+            return NetworkAPIResult()
+        else:
+            return NetworkAPIResult(status=NetworkAPIResult.INVALID_ARGUMENTS)
+    else:
+        doc = QDomDocument('xml')
+        root = doc.createElement('maplayer')
+        doc.appendChild(root)
+        # TODO check return value
+        layer.writeStyle(root, doc, '')
+        return NetworkAPIResult(doc.toString(), 'text/xml')
+
 
 # http://qgis.org/api/2.18/classQgsMapCanvas.html
 import os
@@ -163,12 +302,19 @@ def mapCanvas_image(iface, request):
     # FIXME format = 'jpg' generates image correctly but has incorrect MIMEtype
     return NetworkAPIResult(imagedata, content_type='image/' + ext.lower())
 
+@networkapi('/qgis/mapCanvas/center')
+def mapCanvas_center(iface, _):
+    """Get map center, in geographical coordinates."""
+    return NetworkAPIResult(iface.mapCanvas().center())
+
 @networkapi('/qgis/mapCanvas/extent')
 def mapCanvas_extent(iface, _):
+    """Returns the current zoom exent of the map canvas."""
     return NetworkAPIResult(iface.mapCanvas().extent())
 
 @networkapi('/qgis/mapCanvas/fullExtent')
 def mapCanvas_fullExtent(iface, _):
+    """Returns the combined exent for all layers on the map canvas."""
     return NetworkAPIResult(iface.mapCanvas().fullExtent())
 
 @networkapi('/qgis/mapCanvas/layer')
@@ -195,7 +341,7 @@ def mapCanvas_layers(iface, _):
     """
     Return list of layers within map canvas that are set visible.
 
-    For all registered layers, see /qgis/mapLayers
+    For *all* registered layers, see /qgis/mapLayers
     """
     return NetworkAPIResult(iface.mapCanvas().layers())
 
@@ -204,20 +350,46 @@ def mapCanvas_magnificationFactor(iface, _):
     """Returns the magnification factor."""
     return NetworkAPIResult(iface.mapCanvas().magnificationFactor())
 
+@networkapi('/qgis/mapCanvas/setMagnificationFactor')
+def mapCanvas_setMagnificationFactor(iface, request):
+    """
+    Sets the factor of magnification to apply to the map canvas.
+
+    GET arguments:
+        factor (float): target magnification factor
+    """
+    return NetworkAPIResult(iface.mapCanvas().setMagnificationFactor(float(request.args['factor'])))
+
 @networkapi('/qgis/mapCanvas/scale')
 def mapCanvas_scale(iface, _):
-    """Get the last reported scale of the canvas."""
+    """Get the last reported scale of the canvas.
+
+    Returns:
+        The last reported scale of the canvas (a single float)
+    """
     return NetworkAPIResult(iface.mapCanvas().scale())
 
 @networkapi('/qgis/mapCanvas/zoomIn')
 def mapCanvas_zoomIn(iface, _):
-    """Zoom in with fixed factor."""
-    return NetworkAPIResult(iface.mapCanvas().zoomIn())
+    """
+    Zoom in with fixed factor.
+
+    Returns:
+        The new scale of the canvas (a single float)
+    """
+    iface.mapCanvas().zoomIn()
+    return NetworkAPIResult(iface.mapCanvas().scale())
 
 @networkapi('/qgis/mapCanvas/zoomOut')
 def mapCanvas_zoomOut(iface, _):
-    """Zoom out with fixed factor."""
-    return NetworkAPIResult(iface.mapCanvas().zoomOut())
+    """
+    Zoom out with fixed factor.
+
+    Returns:
+        The new scale of the canvas (a single float)
+    """
+    iface.mapCanvas().zoomOut()
+    return NetworkAPIResult(iface.mapCanvas().scale())
 
 @networkapi('/qgis/mapCanvas/zoomScale')
 def mapCanvas_zoomScale(iface, request):
@@ -226,82 +398,15 @@ def mapCanvas_zoomScale(iface, request):
 
     GET arguments:
         scale (float): target scale
+
+    Returns:
+        The new scale of the canvas (a single float)
     """
-    return NetworkAPIResult(iface.mapCanvas().zoomScale(float(request.args['scale'])))
+    print iface.mapCanvas().zoomScale(float(request.args['scale']))
+    return NetworkAPIResult(iface.mapCanvas().scale())
 
 @networkapi('/qgis/mapCanvas/zoomToFullExtent')
 def mapCanvas_zoomToFullExtent(iface, _):
     """Zoom to the full extent of all layers."""
     return NetworkAPIResult(iface.mapCanvas().zoomToFullExtent())
 
-
-
-from PyQt4.QtXml import QDomDocument
-
-# overload /xml path: POST loads layer from request, GET returns current xml
-@networkapi('/qgis/mapLayers/xml')
-def mapLayers_xml(iface, request):
-    layer = qgis_layer_by_id(request.args['id'])
-    if request.command == 'POST':
-        doc = QDomDocument('xml')
-        # TODO needs testing
-        if doc.setContent(request.headers.get_payload()) and layer.readLayerXml(doc):
-            return NetworkAPIResult()
-        else:
-            return NetworkAPIResult(status=NetworkAPIResult.INVALID_ARGUMENTS)
-    else:
-        doc = QDomDocument('xml')
-        root = doc.createElement('maplayer')
-        doc.appendChild(root)
-        layer.writeLayerXML(root, doc, '')
-        return NetworkAPIResult(doc.toString(), 'text/xml')
-
-# same overloading for /style path
-@networkapi('/qgis/mapLayers/style')
-def mapLayers_style(iface, request):
-    layer = qgis_layer_by_id(request.args['id'])
-    if request.command == 'POST':
-        doc = QDomDocument('xml')
-        # TODO needs testing (second argument to readStyle?)
-        if doc.setContent(request.headers.get_payload()) and layer.readStyle(doc):
-            return NetworkAPIResult()
-        else:
-            return NetworkAPIResult(status=NetworkAPIResult.INVALID_ARGUMENTS)
-    else:
-        doc = QDomDocument('xml')
-        root = doc.createElement('maplayer')
-        doc.appendChild(root)
-        # FIXME 'QgsVectorLayer' object has no attribute 'writeStyle' ??
-        # cf. http://qgis.org/api/2.18/classQgsVectorLayer.html#aca70632c28ef4e5075784e16f4be8efa
-        layer.writeStyle(root, doc, '')
-        return NetworkAPIResult(doc.toString(), 'text/xml')
-
-@networkapi('/qgis/addRasterLayer')
-def add_raster_layer(iface, request):
-    if request.command == 'POST':
-        # TODO check get_payload() for multipart?
-        tmpfile, filename = mkstemp('.geojson')
-        os.write(tmpfile, request.headers.get_payload())
-        os.close(tmpfile)
-    else:
-        # try 'uri' GET arg (could actually be file:// or a web http:// url)
-        # TODO implement provider string URI options (from POST arguments?)
-        # http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/loadlayer.html#vector-layers
-        filename = request.args['uri']
-    # 2 args for local file, 3 args for WMS layer
-    return NetworkAPIResult(iface.addRasterLayer(filename, request.args.get('name', '')))
-    # TODO temp file cleanup
-
-@networkapi('/qgis/addVectorLayer')
-def add_vector_layer(iface, request):
-    if request.command == 'POST':
-        # TODO check get_payload() for multipart?
-        tmpfile, filename = mkstemp('.geojson')
-        os.write(tmpfile, request.headers.get_payload())
-        os.close(tmpfile)
-    else:
-        # try 'uri' GET arg (could actually be file:// or a web http:// url)
-        # http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/loadlayer.html#vector-layers
-        filename = request.args['uri']
-    return NetworkAPIResult(iface.addVectorLayer(filename, request.args.get('name', ''), request.args.get('type', 'ogr')))
-    # TODO file cleanup
