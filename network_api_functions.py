@@ -49,6 +49,8 @@ def mapLayer(iface, request):
     """
     Return information about the layer with the given ID.
 
+    For information about all registered layers and their IDs, see /qgis/mapLayers
+
     GET arguments:
         id (string): ID of layer to retrieve
 
@@ -79,8 +81,33 @@ def mapLayers_getFeatures(iface, request):
 
 @networkapi('/qgis/mapLayers/selectedFeatures')
 def mapLayers_selectedFeatures(iface, request):
-    layer = qgis_layer_by_id(request.args['id'])
+    """
+    Return information about the currently selected features from the given vector layer.
+
+    To retrieve the geometry of all selected features, see /qgis/mapLayers/selectedFeatures/geometry
+
+    GET arguments:
+        id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
+
+    Returns:
+        A list of all currently selected features in JSON format, where each feature is an object specifying the feature's 'id' and all its 'attributes'.
+    """
+    # if 'id' arg was not passed, default to currentLayer()
+    if request.args.get('id'):
+        layer = qgis_layer_by_id(request.args['id'])
+    else:
+        layer = iface.mapCanvas().currentLayer()
+    # FIXME this sometimes returns empty attributes and id of 0 for some
+    # elements, maybe retrieve features via their id instead?
     return NetworkAPIResult(layer.selectedFeatures())
+
+@networkapi('/qgis/mapLayers/selectedFeatures/geometry')
+def mapLayers_selectedFeatures_geometry(iface, request):
+    if request.args.get('id'):
+        layer = qgis_layer_by_id(request.args['id'])
+    else:
+        layer = iface.mapCanvas().currentLayer()
+    return NetworkAPIResult([f.geometry() for f in layer.selectedFeatures()])
 
 # http://qgis.org/api/2.18/classQgsMapCanvas.html
 import os
@@ -107,7 +134,7 @@ def mapCanvas_image(iface, request):
     Return the currently visible content of the map canvas as an image.
 
     GET arguments:
-        format (optional): any image format string supported by QGIS' saveAsImage() (default: 'png')
+        format (optional): any image format string supported by QGIS' saveAsImage() (default: 'png', other options e.g. 'jpeg')
 
     Returns:
         An image the same size as the currently visible map canvas. The content-type of the response is set to 'image/' + format.
@@ -121,12 +148,20 @@ def mapCanvas_image(iface, request):
     if pixmap.isNull():
         pixmap = None
 
+    # doesn't provide status information about success of writing, have to
+    # check file size below
     iface.mapCanvas().saveAsImage(tmpfilename, pixmap, ext)
+
     with open(tmpfilename, 'r') as content_file:
         imagedata = content_file.read()
     os.remove(tmpfilename)
     # TODO QGIS also writes a 'world file' (same filename + 'w' at the end)?
-    return NetworkAPIResult(imagedata, content_type='image/' + ext)
+
+    if len(imagedata) == 0:
+        raise IOError('Failed to write canvas contents in format ' + ext)
+
+    # FIXME format = 'jpg' generates image correctly but has incorrect MIMEtype
+    return NetworkAPIResult(imagedata, content_type='image/' + ext.lower())
 
 @networkapi('/qgis/mapCanvas/extent')
 def mapCanvas_extent(iface, _):

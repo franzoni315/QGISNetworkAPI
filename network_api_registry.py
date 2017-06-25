@@ -54,12 +54,12 @@ from qgis.gui import QgsMapCanvas
 class QGISJSONEncoder(JSONEncoder):
     def default(self, o):
         if isinstance(o, QgsFeature):
-            return {'id': o.id(), 'attributes': dict(zip([field.name() for field in o.fields().toList()], o.attributes())), 'geometry': o.geometry() }
+            return {'id': o.id(), 'attributes': dict(zip([field.name() for field in o.fields().toList()], o.attributes())) }
         elif isinstance(o, QgsFields): # 'isNumeric': f.isNumeric(),  from 2.18
             return [{'name': f.name(), 'comment': f.comment(), 'length': f.length() } for f in o.toList()]
-        elif isinstance(o, QgsGeometry):
+#        elif isinstance(o, QgsGeometry):
             # FIXME this actually returns a string, not a json structure...
-            return o.exportToGeoJSON() # TODO precision?
+            #return o.exportToGeoJSON()
         elif isinstance(o, QgsMapCanvas):
             return {'extent': o.extent(), 'crs': o.mapSettings().destinationCrs(), 'mapUnits': 0 } # TODO
         elif isinstance(o, QgsMapLayer):
