@@ -43,8 +43,8 @@ class NetworkAPIResult:
 # json.dump() based on the following encoder:
 
 from json import JSONEncoder
-from PyQt4.QtCore import QPyNullVariant
-from qgis.core import QgsFeature, QgsFeatureIterator, QgsFields, QgsGeometry, QgsMapLayer, QgsPoint, QgsRectangle, QgsCoordinateReferenceSystem, QgsUnitTypes
+from PyQt4.QtCore import QPyNullVariant, QSize
+from qgis.core import QgsFeature, QgsFeatureIterator, QgsFields, QgsGeometry, QgsMapLayer, QgsMapSettings, QgsPoint, QgsRectangle, QgsCoordinateReferenceSystem, QgsUnitTypes
 from qgis.gui import QgsMapCanvas
 
 # TODO: convert python-wrapped C++ enum to string:
@@ -60,17 +60,55 @@ class QGISJSONEncoder(JSONEncoder):
 #        elif isinstance(o, QgsGeometry):
             # FIXME this actually returns a string, not a json structure...
             #return o.exportToGeoJSON()
-        elif isinstance(o, QgsMapCanvas):
-            return {'extent': o.extent(), 'crs': o.mapSettings().destinationCrs(), 'mapUnits': 0 } # TODO
+        elif isinstance(o, QgsMapSettings):
+            return { 'destinationCrs': o.destinationCrs(), 'extent': o.extent(), 'fullExtent': o.fullExtent(), 'layers': o.layers(), 'mapUnits': o.mapUnits(), 'mapUnitsPerPixel': o.mapUnitsPerPixel(), 'outputSize': o.outputSize(), 'rotation': o.rotation(), 'scale': o.scale(), 'visibleExtent': o.visibleExtent()}
         elif isinstance(o, QgsMapLayer):
-            return {'id': o.id(), 'name': o.name(), 'type': o.type(), 'publicSource': o.publicSource(), 'crs': o.crs(), 'extent': o.extent(), 'isEditable': o.isEditable()}
+            return {'id': o.id(), 'valid': o.isValid(), 'name': o.name(), 'type': o.type(), 'publicSource': o.publicSource(), 'crs': o.crs(), 'extent': o.extent(), 'isEditable': o.isEditable()}
         elif isinstance(o, QgsCoordinateReferenceSystem):
             return {'description': o.description(), 'srsid': o.srsid(), 'proj4': o.toProj4(), 'postgisSrid': o.postgisSrid()}
         elif isinstance(o, QgsPoint):
             return [o.x(), o.y()]
         elif isinstance(o, QgsRectangle):
             return [o.xMinimum(), o.yMinimum(), o.xMaximum(), o.yMaximum()]
+        elif isinstance(o, QSize):
+            return [o.width(), o.height()]
         elif isinstance(o, QPyNullVariant):
             # Qt's very own 'null'
             return None
         return JSONEncoder.default(self, o)
+
+import os
+from tempfile import mkstemp
+from qgis.core import QgsVectorFileWriter
+
+def toGeoJSON(layer, features):
+    """
+    Convert a list of QgsFeatures including their geometries to GeoJSON.
+    """
+    tmpfile, tmpfilename = mkstemp('.geojson')
+    os.close(tmpfile)
+    # supporting arbitrary output formats would be great but unfortunately
+    # the QgsVectorFileWriter adds an extension to the supplied filename if
+    # it doesn't have the correct one already. so in order to robustly
+    # support all formats we'd have to create the temporary filename
+    # according to QgsVectorFileWriter.supportedFiltersAndFormats()
+    # (there's still more added complexity from the fact that some formats
+    # are spread across more than one file...)
+    writer = QgsVectorFileWriter(tmpfilename, None, layer.fields(), layer.wkbType(), layer.crs(), 'GeoJSON')
+
+    for f in features:
+        print writer.addFeature(f)
+
+    if writer.hasError():
+        msg = writer.errorMessage()
+        del writer
+        os.remove(tmpfilename)
+        raise IOError(msg)
+
+    # flush to file
+    del writer
+
+    with open(tmpfilename, 'r') as content_file:
+        content = content_file.read()
+    os.remove(tmpfilename)
+    return content

@@ -149,20 +149,20 @@ curl --silent http://localhost:8090/qgis/mapCanvas/extent
 
 ``` bash
 # read current canvas content
-wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/image
-file "image"
+wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage
+file "saveAsImage"
 ```
 
-    ## 2017-06-25 16:37:40 URL:http://127.0.0.1:8090/qgis/mapCanvas/image [67796] -> "image" [1]
-    ## image: PNG image data, 1093 x 334, 8-bit/color RGBA, non-interlaced
+    ## 2017-06-25 16:37:40 URL:http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage [67796] -> "saveAsImage" [1]
+    ## saveAsImage: PNG image data, 1093 x 334, 8-bit/color RGBA, non-interlaced
 
 ``` bash
-wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/image?format=jpg
-file "image?format=jpg"
+wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage?format=jpg
+file "saveAsImage?format=jpg"
 ```
 
-    ## 2017-06-25 16:37:40 URL:http://127.0.0.1:8090/qgis/mapCanvas/image?format=jpg [49470] -> "image?format=jpg" [1]
-    ## image?format=jpg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 96x96, segment length 16, baseline, precision 8, 1093x334, frames 3
+    ## 2017-06-25 16:37:40 URL:http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage?format=jpeg [49470] -> "saveAsImage?format=jpeg" [1]
+    ## saveAsImage?format=jpeg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 96x96, segment length 16, baseline, precision 8, 1093x334, frames 3
 
 ``` bash
 # retrieve current scale
@@ -183,10 +183,6 @@ curl --silent http://localhost:8090/qgis/mapCanvas/zoomScale?scale=1234567.8
 ```
 
     ## 1234567.800000001
-
-### Test data
-
-<http://blog.mastermaps.com/2011/02/natural-earth-vectors-in-cloud.html>
 
 Related projects
 ----------------

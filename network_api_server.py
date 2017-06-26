@@ -13,9 +13,11 @@ class NetworkAPIServer(QTcpServer):
     def __init__(self, iface):
         QTcpServer.__init__(self)
         self.iface = iface
+
         self.iface.newProjectCreated.connect(self.stopServer)
         # TODO: read project-specific on/off setting instead
         self.iface.projectRead.connect(self.stopServer)
+
         # to save clicks while developing: immediately start server on load
         self.startServer(NetworkAPIDialog.settings.port())
 
@@ -138,12 +140,15 @@ class NetworkAPIServer(QTcpServer):
                 self.request.end_headers()
                 self.request.wfile.write(result.body)
             else:
+                # autoconvert python classes using JSONEncoder below.
+                # note that GeoJSON results are NOT handled here!
                 self.request.send_header('Content-Type', 'application/json')
                 self.request.end_headers()
                 dump(result.body, self.request.wfile, cls=QGISJSONEncoder, indent=2)
             # connection will be closed by parent function
         except Exception as e:
             self.request.send_http_error(500, str(e))
+            # TODO if request failed, add link to docs at /api?path=... ?
 
 
 # request parsing

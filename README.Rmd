@@ -52,13 +52,13 @@ curl --silent http://localhost:8090/qgis/mapCanvas/extent
 
 ```{bash}
 # read current canvas content
-wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/image
-file "image"
+wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage
+file "saveAsImage"
 ```
 
 ```{bash}
-wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/image?format=jpg
-file "image?format=jpg"
+wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage?format=jpeg
+file "saveAsImage?format=jpeg"
 ```
 
 ```{bash}
@@ -74,11 +74,6 @@ curl --silent http://localhost:8090/qgis/mapCanvas/zoomIn
 ```{bash}
 curl --silent http://localhost:8090/qgis/mapCanvas/zoomScale?scale=1234567.8
 ```
-
-### Test data
-
-http://blog.mastermaps.com/2011/02/natural-earth-vectors-in-cloud.html
-
 
 ## Related projects
 

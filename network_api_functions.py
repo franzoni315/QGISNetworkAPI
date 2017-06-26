@@ -7,7 +7,7 @@
 #
 # the functions should return an instance of NetworkAPIResult
 
-from network_api_registry import networkapi, NetworkAPIResult
+from network_api_registry import networkapi, NetworkAPIResult, toGeoJSON
 from qgis.core import QgsMapLayerRegistry, QgsVectorFileWriter
 
 # TODO add simple function to simplify wrapping argument-free function calls
@@ -92,7 +92,7 @@ def mapLayers_count(iface, _):
 @networkapi('/qgis/mapLayers')
 def mapLayers(iface, request):
     """
-    Returns information about all registered layers by layer ID.
+    Returns information about all registered layers.
 
     For information on the currently visible layers and their ordering, see /qgis/mapCanvas/layers
 
@@ -165,7 +165,7 @@ def mapLayer_selectedFeatures(iface, request):
     """
     Return information about the currently selected features from the given vector layer.
 
-    To retrieve the geometry of all selected features, see /qgis/mapLayer/selectedFeatures/geometry
+    Returns ids and attributes of the features only. In order to also retrieve the geometry as well as layer information of the features (in proper GeoJSON), see /qgis/mapLayer/selectedFeatures/geometry
 
     GET arguments:
         id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
@@ -184,11 +184,23 @@ def mapLayer_selectedFeatures(iface, request):
 
 @networkapi('/qgis/mapLayer/selectedFeatures/geometry')
 def mapLayer_selectedFeatures_geometry(iface, request):
+    """
+    Return attributes and geometry of the currently selected features from the given vector layer.
+
+    To inspect the feature ids and attributes only, see /qgis/mapLayer/selectedFeatures
+
+    GET arguments:
+        id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
+
+    Returns:
+        Complete data of all selected features in GeoJSON format.
+    """
     if request.args.get('id'):
         layer = qgis_layer_by_id(request.args['id'])
     else:
         layer = iface.mapCanvas().currentLayer()
-    return NetworkAPIResult([f.geometry() for f in layer.selectedFeatures()])
+    return NetworkAPIResult(toGeoJSON(layer, layer.selectedFeatures()), 'application/geo+json')
+#    return NetworkAPIResult([f.geometry() for f in layer.selectedFeatures()])
 
 from PyQt4.QtXml import QDomDocument
 
@@ -253,27 +265,46 @@ import os
 from tempfile import mkstemp
 from PyQt4.QtGui import QPixmap
 
+
 @networkapi('/qgis/mapCanvas')
-def mapCanvas(iface, request):
+def mapCanvas(iface, _):
     """
-    Return information about the map canvas, such as visible area, projection etc.
+    Return configuration and properties used for map rendering, such as visible area, projection etc.
+
+    To obtain the XML specification of the configurable map canvas settings, see /qgis/mapCanvas/xml
+
+    Unlike the XML configuration, this path also returns information about properties of the canvas which are to do with the underlying layers or are incidental to the current session (such as 'fullExtent' and 'visibleExtent').
+
+    Returns:
+        The contents of the canvas' QgsMapSettings object in JSON format.
     """
-    return NetworkAPIResult(iface.mapCanvas())
+    # TODO implement access to specific fields via GET arg?
+    return NetworkAPIResult(iface.mapCanvas().mapSettings())
 
-# overload with POST?
-# @networkapi('/qgis/mapCanvas/xml')
-# def mapCanvas_xml(iface, request):
-#     doc = QDomDocument('xml')
-#     iface.mapCanvas().writeProject(doc)
-#     return NetworkAPIResult(doc.toString(), 'text/xml')
+@networkapi('/qgis/mapCanvas/xml')
+def mapCanvas_xml(iface, _):
+    """
+    Return XML configuration used for map rendering.
 
-@networkapi('/qgis/mapCanvas/image')
-def mapCanvas_image(iface, request):
+    To obtain a JSON specification of the current map canvas settings, see /qgis/mapCanvas
+
+    Returns:
+        The XML serialisation of the canvas' QgsMapSettings object.
+    """
+    # TODO implement POST command
+    doc = QDomDocument('xml')
+    root = doc.createElement('mapcanvas')
+    doc.appendChild(root)
+    iface.mapCanvas().mapSettings().writeXML(root, doc)
+    return NetworkAPIResult(doc.toString(), 'text/xml')
+
+@networkapi('/qgis/mapCanvas/saveAsImage')
+def mapCanvas_saveAsImage(iface, request):
     """
     Return the currently visible content of the map canvas as an image.
 
     GET arguments:
-        format (optional): any image format string supported by QGIS' saveAsImage() (default: 'png', other options e.g. 'jpeg')
+        format (optional): any image format string supported by QGIS' (default: 'png', other options e.g. 'jpeg')
 
     Returns:
         An image the same size as the currently visible map canvas. The content-type of the response is set to 'image/' + format.
@@ -402,11 +433,16 @@ def mapCanvas_zoomScale(iface, request):
     Returns:
         The new scale of the canvas (a single float)
     """
-    print iface.mapCanvas().zoomScale(float(request.args['scale']))
+    iface.mapCanvas().zoomScale(float(request.args['scale']))
     return NetworkAPIResult(iface.mapCanvas().scale())
 
 @networkapi('/qgis/mapCanvas/zoomToFullExtent')
 def mapCanvas_zoomToFullExtent(iface, _):
-    """Zoom to the full extent of all layers."""
-    return NetworkAPIResult(iface.mapCanvas().zoomToFullExtent())
+    """
+    Zoom to the full extent of all layers.
 
+    Returns:
+        The new scale of the canvas (a single float)
+    """
+    iface.mapCanvas().zoomToFullExtent()
+    return NetworkAPIResult(iface.mapCanvas().scale())
