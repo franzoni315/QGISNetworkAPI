@@ -21,9 +21,10 @@
  ***************************************************************************/
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon
+from PyQt4.QtGui import QAction, QIcon, QToolButton
 # Initialize Qt resources from file resources.py
 import resources
+
 # Import the code for the dialog
 from network_api_dialog import NetworkAPIDialog
 from network_api_server import NetworkAPIServer
@@ -68,6 +69,20 @@ class NetworkAPI:
 
         self.serversingleton = NetworkAPIServer(self.iface)
 
+        icon = QIcon()
+        icon.addFile(':/plugins/NetworkAPI/icon.png', state=QIcon.On)
+        # add b/w for when button is not checked (i.e. server not running)
+        icon.addFile(':/plugins/NetworkAPI/icon-bw.png', state=QIcon.Off)
+
+        self.toggleAction = QAction(icon, 'Toggle Network API server on/off', None)
+        self.toggleAction.triggered.connect(self.toggleServer)
+        self.toggleAction.setCheckable(True)
+        self.statusbutton = QToolButton()
+        self.statusbutton.setDefaultAction(self.toggleAction)
+
+        self.iface.mainWindow().statusBar().addPermanentWidget(self.statusbutton)
+
+
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -83,12 +98,11 @@ class NetworkAPI:
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('NetworkAPI', message)
 
-
     def add_action(
         self,
-        icon_path,
         text,
         callback,
+        icon=QIcon(':/plugins/NetworkAPI/icon.png'),
         enabled_flag=True,
         add_to_menu=True,
         add_to_toolbar=True,
@@ -137,7 +151,6 @@ class NetworkAPI:
         # Create the dialog (after translation) and keep reference
         self.dlg = NetworkAPIDialog()
 
-        icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
         action.triggered.connect(callback)
         action.setEnabled(enabled_flag)
@@ -162,12 +175,9 @@ class NetworkAPI:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
-
-        icon_path = ':/plugins/NetworkAPI/icon.png'
         self.add_action(
-            icon_path,
-            text=self.tr(u'Remote Control'),
-            callback=self.run,
+            text=self.tr(u'Configure Network API'),
+            callback=self.showConfigDialog,
             parent=self.iface.mainWindow())
 
 
@@ -178,15 +188,20 @@ class NetworkAPI:
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
+        self.iface.mainWindow().statusBar().removeWidget(self.statusbutton)
+        del self.statusbutton
         self.serversingleton.stopServer()
 
 
-    def run(self):
-        """Run method that performs all the real work"""
+    def showConfigDialog(self):
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
         result = self.dlg.exec_()
         # See if OK was pressed
-#        if result:
-#            self.serversingleton.startServer(8090)
+
+    def toggleServer(self):
+        if self.statusbutton.isChecked():
+            self.serversingleton.startServer(8090)
+        else:
+            self.serversingleton.stopServer()
