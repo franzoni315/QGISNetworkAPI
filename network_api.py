@@ -67,8 +67,6 @@ class NetworkAPI:
         self.toolbar = self.iface.addToolBar(u'NetworkAPI')
         self.toolbar.setObjectName(u'NetworkAPI')
 
-        self.serversingleton = NetworkAPIServer(self.iface)
-
         icon = QIcon()
         icon.addFile(':/plugins/NetworkAPI/icon.png', state=QIcon.On)
         # add b/w for when button is not checked (i.e. server not running)
@@ -82,6 +80,8 @@ class NetworkAPI:
 
         self.iface.mainWindow().statusBar().addPermanentWidget(self.statusbutton)
 
+        self.serversingleton = NetworkAPIServer(self.iface)
+        self.serversingleton.status_changed.connect(self.server_status_changed)
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -205,3 +205,13 @@ class NetworkAPI:
             self.serversingleton.startServer(8090)
         else:
             self.serversingleton.stopServer()
+
+    def server_status_changed(self, status, description):
+        self.toggleAction.setChecked(bool(status))
+        self.toggleAction.setToolTip(description)
+        if status == 0:
+            self.statusbutton.setStyleSheet("")
+        elif status == 1:
+            self.statusbutton.setStyleSheet("background-color:green;")
+        else:
+            self.statusbutton.setStyleSheet("background-color:red;")

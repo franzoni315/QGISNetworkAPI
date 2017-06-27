@@ -1,4 +1,5 @@
 from json import dump
+from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtNetwork import QHostAddress, QTcpServer
 from network_api_dialog import NetworkAPIDialog
 from network_api_registry import QGISJSONEncoder, Registry
@@ -10,16 +11,24 @@ import network_api_functions
 import network_api_doc
 
 class NetworkAPIServer(QTcpServer):
+
+    # signal emitted whenever the server changes state
+    # int argument: 0 = stopped, 1 = listening, 2 = busy/blocking
+    status_changed = pyqtSignal(int, str)
+
+    def signal_status (self, status, message = ''):
+        # TODO fill in default paused/running messages for status 0+1
+        self.status_changed.emit(status, message)
+
     def __init__(self, iface):
         QTcpServer.__init__(self)
         self.iface = iface
 
         self.iface.newProjectCreated.connect(self.stopServer)
-        # TODO: read project-specific on/off setting instead
         self.iface.projectRead.connect(self.stopServer)
 
-        # to save clicks while developing: immediately start server on load
-        self.startServer(NetworkAPIDialog.settings.port())
+        # TODO: read project-specific on/off setting, start server if desired
+#        self.startServer(NetworkAPIDialog.settings.port())
 
     def log(self, message, level=QgsMessageLog.INFO):
         QgsMessageLog.logMessage(message, 'NetworkAPI', level=level)
@@ -34,6 +43,7 @@ class NetworkAPIServer(QTcpServer):
         if self.isListening():
             self.log('Stopping to listen on port ' + str(self.serverPort()))
             self.close()
+            self.signal_status(0, 'Server stopped')
 
     def startServer(self, port):
         self.stopServer()
@@ -44,6 +54,7 @@ class NetworkAPIServer(QTcpServer):
 
         self.newConnection.connect(self.new_connection)
         if self.listen(QHostAddress.Any, port):
+            self.signal_status(1, 'Listening on port ' + str(self.serverPort()))
             self.log('Listening for Network API requests on port ' + str(self.serverPort()))
         else:
             self.status('Error: failed to open socket on port ' + str(port), QgsMessageBar.CRITICAL)
@@ -101,6 +112,7 @@ class NetworkAPIServer(QTcpServer):
         self.process_request()
 
     def process_request(self):
+        self.signal_status(2, 'Processing request...')
         # TODO check authorisation, send 401
         # inspect request.headers['Authorization']
 
@@ -130,6 +142,7 @@ class NetworkAPIServer(QTcpServer):
         self.connection.write(self.request.wfile.getvalue())
         # flush response and close connection (i.e. no persistent connections)
         self.connection.disconnectFromHost()
+        self.signal_status(1)
 
     def perform_request(self, qgis_call):
         try:
