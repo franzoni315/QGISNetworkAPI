@@ -46,10 +46,10 @@
       </sizepolicy>
      </property>
      <property name="text">
-      <string>Start listening</string>
+      <string>Enable API</string>
      </property>
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="checkable">
       <bool>true</bool>

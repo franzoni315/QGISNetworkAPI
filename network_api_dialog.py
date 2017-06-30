@@ -24,7 +24,7 @@
 import os
 
 from PyQt4 import uic
-from PyQt4.QtGui import QDialog, QDialogButtonBox
+from PyQt4.QtGui import QDialog, QDialogButtonBox, QIntValidator
 from network_api_settings import NetworkAPISettings
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -41,6 +41,8 @@ class NetworkAPIDialog(QDialog, FORM_CLASS):
         self.setupUi(self)
         # After setupUI you can access any designer object by doing
         # self.<objectname>
+
+        self.port.setValidator(QIntValidator(0, 65536))
         self.buttons.clicked.connect(self.handleButtonClick)
         self.loadSettings()
 

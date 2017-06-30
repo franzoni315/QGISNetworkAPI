@@ -20,8 +20,10 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon, QToolButton
+
+from PyQt4.QtCore import QSettings, Qt, QTranslator, qVersion, QCoreApplication
+from PyQt4.QtGui import QAction, QCheckBox, QIcon
+from PyQt4.Qt import QPalette
 # Initialize Qt resources from file resources.py
 import resources
 
@@ -67,21 +69,7 @@ class NetworkAPI:
         self.toolbar = self.iface.addToolBar(u'NetworkAPI')
         self.toolbar.setObjectName(u'NetworkAPI')
 
-        icon = QIcon()
-        icon.addFile(':/plugins/NetworkAPI/icon.png', state=QIcon.On)
-        # add b/w for when button is not checked (i.e. server not running)
-        icon.addFile(':/plugins/NetworkAPI/icon-bw.png', state=QIcon.Off)
-
-        self.toggleAction = QAction(icon, 'Toggle Network API server on/off', None)
-        self.toggleAction.triggered.connect(self.toggleServer)
-        self.toggleAction.setCheckable(True)
-        self.statusbutton = QToolButton()
-        self.statusbutton.setDefaultAction(self.toggleAction)
-
-        self.iface.mainWindow().statusBar().addPermanentWidget(self.statusbutton)
-
         self.serversingleton = NetworkAPIServer(self.iface)
-        self.serversingleton.status_changed.connect(self.server_status_changed)
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -180,9 +168,46 @@ class NetworkAPI:
             callback=self.showConfigDialog,
             parent=self.iface.mainWindow())
 
+        self.statusbutton = QCheckBox()
+        # replace checkbox with icon that is b/w when button is not checked
+#        self.statusbutton.setStyleSheet('QCheckBox::icon::checked { image: url(:/plugins/NetworkAPI/icon.png);} QCheckBox::icon::unchecked { image: url(:/plugins/NetworkAPI/icon-bw.png);}')
+        self.statusbutton.setText('Network API plugin')
+        # TODO set initial tooltip?
+
+        self.statusbutton.clicked.connect(self.toggle_server)
+        self.dlg.toggle.clicked.connect(self.toggle_server)
+
+        self.iface.mainWindow().statusBar().addPermanentWidget(self.statusbutton)
+
+        # connect server signals to update status button etc
+        self.serversingleton.status_changed.connect(self.server_status_changed)
+
+    def toggle_server(self, toggled):
+        if toggled:
+            self.serversingleton.startServer(8090)
+        else:
+            self.serversingleton.stopServer()
+
+    def server_status_changed(self, status, description):
+        # only 0 = off
+        self.statusbutton.setChecked(bool(status))
+        self.statusbutton.setToolTip(description)
+        self.dlg.status.setText(description)
+        self.dlg.toggle.setChecked(bool(status))
+
+        if status == 2: # receiving data
+            self.statusbutton.setStyleSheet('background-color: yellow;')
+        elif status == 3: # processing request (blocking)
+            self.statusbutton.setStyleSheet('background-color: red;')
+        elif status == 1: # listening
+            self.statusbutton.setStyleSheet('')
+        else: # off
+            self.statusbutton.setStyleSheet('')
+
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
+        self.serversingleton.stopServer()
         for action in self.actions:
             self.iface.removePluginMenu(self.menu, action)
             self.iface.removeToolBarIcon(action)
@@ -190,7 +215,6 @@ class NetworkAPI:
         del self.toolbar
         self.iface.mainWindow().statusBar().removeWidget(self.statusbutton)
         del self.statusbutton
-        self.serversingleton.stopServer()
 
 
     def showConfigDialog(self):
@@ -198,20 +222,5 @@ class NetworkAPI:
         self.dlg.show()
         # Run the dialog event loop
         result = self.dlg.exec_()
-        # See if OK was pressed
-
-    def toggleServer(self):
-        if self.statusbutton.isChecked():
-            self.serversingleton.startServer(8090)
-        else:
-            self.serversingleton.stopServer()
-
-    def server_status_changed(self, status, description):
-        self.toggleAction.setChecked(bool(status))
-        self.toggleAction.setToolTip(description)
-        if status == 0:
-            self.statusbutton.setStyleSheet("")
-        elif status == 1:
-            self.statusbutton.setStyleSheet("background-color:green;")
-        else:
-            self.statusbutton.setStyleSheet("background-color:red;")
+        # no need to check the result -- the dialog itself takes care of
+        # restarting the server in case of port/config changes etc.

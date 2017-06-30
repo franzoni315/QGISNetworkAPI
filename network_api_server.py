@@ -13,7 +13,8 @@ import network_api_doc
 class NetworkAPIServer(QTcpServer):
 
     # signal emitted whenever the server changes state
-    # int argument: 0 = stopped, 1 = listening, 2 = busy/blocking
+    # int argument: 0 = stopped, 1 = listening, 2 = waiting for data,
+    # 3 = processing request (busy/blocking)
     status_changed = pyqtSignal(int, str)
 
     def signal_status (self, status, message = ''):
@@ -90,6 +91,7 @@ class NetworkAPIServer(QTcpServer):
             self.new_connection()
 
     def process_data(self):
+        self.signal_status(2, 'Receiving data...')
         # readAll() doesn't guarantee that there isn't any more data still
         # incoming before reaching the 'end' of the input stream (which, for
         # network connections, is ill-defined anyway). in order to be able to
@@ -112,7 +114,7 @@ class NetworkAPIServer(QTcpServer):
         self.process_request()
 
     def process_request(self):
-        self.signal_status(2, 'Processing request...')
+        self.signal_status(3, 'Processing request...')
         # TODO check authorisation, send 401
         # inspect request.headers['Authorization']
 
