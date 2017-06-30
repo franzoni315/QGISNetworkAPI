@@ -23,14 +23,15 @@
 
 import os
 
-from PyQt4 import QtGui, uic
+from PyQt4 import uic
+from PyQt4.QtGui import QDialog, QDialogButtonBox
 from network_api_settings import NetworkAPISettings
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'network_api_dialog_base.ui'))
 
 
-class NetworkAPIDialog(QtGui.QDialog, FORM_CLASS):
+class NetworkAPIDialog(QDialog, FORM_CLASS):
 
     settings = NetworkAPISettings()
 
@@ -59,11 +60,10 @@ class NetworkAPIDialog(QtGui.QDialog, FORM_CLASS):
 
     def handleButtonClick(self, button):
         sb = self.buttons.standardButton(button)
-        if sb == QtGui.QDialogButtonBox.Apply:
-            print('Apply clicked')
+        # this could be more elegant by conditioning on button *roles*..
+        if sb == QDialogButtonBox.Apply or sb == QDialogButtonBox.Ok:
+            # TODO check if port, remote_connections or auth changed, if so
+            # trigger server restart after saving
             self.saveSettings()
-        elif sb == QtGui.QDialogButtonBox.Cancel:
-            print('Cancel clicked')
-        elif sb == QtGui.QDialogButtonBox.Ok:
-            self.saveSettings()
-            print('Ok clicked')
+        else: # Reset or Cancel
+            self.loadSettings()
