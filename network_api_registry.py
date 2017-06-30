@@ -43,7 +43,7 @@ class NetworkAPIResult:
 # json.dump() based on the following encoder:
 
 from json import JSONEncoder
-from PyQt4.QtCore import QPyNullVariant, QSize
+from PyQt4.QtCore import QDate, QDateTime, QPyNullVariant, QSize, QTime, Qt
 from qgis.core import QgsFeature, QgsFeatureIterator, QgsFields, QgsGeometry, QgsMapLayer, QgsMapSettings, QgsPoint, QgsRectangle, QgsCoordinateReferenceSystem, QgsUnitTypes
 from qgis.gui import QgsMapCanvas
 
@@ -53,29 +53,42 @@ from qgis.gui import QgsMapCanvas
 
 class QGISJSONEncoder(JSONEncoder):
     def default(self, o):
-        if isinstance(o, QgsFeature):
+
+        ### Qt types (in alphabetical order)
+        if isinstance(o, QDate) or isinstance(o, QDateTime) or isinstance(o, QTime):
+            # there is not actual date/time type in JSON, so convert to string
+            return o.toString(Qt.ISODate)
+        elif isinstance(o, QPyNullVariant):
+            # Qt's very own 'null'
+            return None
+        elif isinstance(o, QSize):
+            return [o.width(), o.height()]
+
+
+        ### QGIS types (in alphabetical order)
+        elif isinstance(o, QgsCoordinateReferenceSystem):
+            return {'description': o.description(), 'srsid': o.srsid(), 'proj4': o.toProj4(), 'postgisSrid': o.postgisSrid()}
+        elif isinstance(o, QgsFeature):
             return {'id': o.id(), 'attributes': dict(zip([field.name() for field in o.fields().toList()], o.attributes())) }
         elif isinstance(o, QgsFields): # 'isNumeric': f.isNumeric(),  from 2.18
             return [{'name': f.name(), 'comment': f.comment(), 'length': f.length() } for f in o.toList()]
-#        elif isinstance(o, QgsGeometry):
-            # FIXME this actually returns a string, not a json structure...
-            #return o.exportToGeoJSON()
+        #elif isinstance(o, QgsGeometry):
+          # use QgsVectorFileWriter instead (see below)
         elif isinstance(o, QgsMapSettings):
             return { 'destinationCrs': o.destinationCrs(), 'extent': o.extent(), 'fullExtent': o.fullExtent(), 'layers': o.layers(), 'mapUnits': o.mapUnits(), 'mapUnitsPerPixel': o.mapUnitsPerPixel(), 'outputSize': o.outputSize(), 'rotation': o.rotation(), 'scale': o.scale(), 'visibleExtent': o.visibleExtent()}
         elif isinstance(o, QgsMapLayer):
             return {'id': o.id(), 'valid': o.isValid(), 'name': o.name(), 'type': o.type(), 'publicSource': o.publicSource(), 'crs': o.crs(), 'extent': o.extent(), 'isEditable': o.isEditable()}
-        elif isinstance(o, QgsCoordinateReferenceSystem):
-            return {'description': o.description(), 'srsid': o.srsid(), 'proj4': o.toProj4(), 'postgisSrid': o.postgisSrid()}
         elif isinstance(o, QgsPoint):
             return [o.x(), o.y()]
         elif isinstance(o, QgsRectangle):
+            # same order as e.g. sf's 'bbox' class
             return [o.xMinimum(), o.yMinimum(), o.xMaximum(), o.yMaximum()]
-        elif isinstance(o, QSize):
-            return [o.width(), o.height()]
-        elif isinstance(o, QPyNullVariant):
-            # Qt's very own 'null'
-            return None
+
+        # default encoding -- prints a conversion error in the middle of the
+        # HTTP response if the structure is not a primitive
         return JSONEncoder.default(self, o)
+
+
 
 import os
 from tempfile import mkstemp
@@ -97,7 +110,8 @@ def toGeoJSON(layer, features):
     writer = QgsVectorFileWriter(tmpfilename, None, layer.fields(), layer.wkbType(), layer.crs(), 'GeoJSON')
 
     for f in features:
-        print writer.addFeature(f)
+        # TODO check returned boolean?
+        writer.addFeature(f)
 
     if writer.hasError():
         msg = writer.errorMessage()
