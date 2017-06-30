@@ -70,6 +70,8 @@ class QGISJSONEncoder(JSONEncoder):
             return {'description': o.description(), 'srsid': o.srsid(), 'proj4': o.toProj4(), 'postgisSrid': o.postgisSrid()}
         elif isinstance(o, QgsFeature):
             return {'id': o.id(), 'attributes': dict(zip([field.name() for field in o.fields().toList()], o.attributes())) }
+        elif isinstance(o, QgsFeatureIterator):
+            return list(o)
         elif isinstance(o, QgsFields): # 'isNumeric': f.isNumeric(),  from 2.18
             return [{'name': f.name(), 'comment': f.comment(), 'length': f.length() } for f in o.toList()]
         #elif isinstance(o, QgsGeometry):

@@ -108,6 +108,12 @@ def qgis_layer_by_id(id):
         raise KeyError('No layer with id: ' + id)
     return layer
 
+def qgis_layer_by_id_or_current(iface, request):
+    if request.args.get('id'):
+        return qgis_layer_by_id(request.args['id'])
+    else:
+        return iface.mapCanvas().currentLayer()
+
 # TODO add support for removal of multiple layers. unwise to overload arg name?
 @networkapi('/qgis/mapLayers/removeMapLayer')
 def mapLayers_removeMapLayer(iface, request):
@@ -140,6 +146,20 @@ def mapLayer(iface, request):
     """
     return NetworkAPIResult(qgis_layer_by_id(request.args['id']))
 
+@networkapi('/qgis/mapLayer/featureCount')
+def mapLayer_featureCount(iface, request):
+    """
+    Return feature count of the given vector layer.
+
+    GET arguments:
+        id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
+
+    Returns:
+    Feature count of the given vector layer, including changes which have not yet been committed to this layer's provider.
+    """
+    layer = qgis_layer_by_id_or_current(iface, request)
+    return NetworkAPIResult(layer.featureCount())
+
 # the following paths require 'id' an argument specifying the desired layer
 @networkapi('/qgis/mapLayer/fields')
 def mapLayer_fields(iface, request):
@@ -157,8 +177,48 @@ def mapLayer_fields(iface, request):
 # TODO parse QgsFeatureRequest from POST body
 @networkapi('/qgis/mapLayer/getFeatures')
 def mapLayer_getFeatures(iface, request):
-    layer = qgis_layer_by_id(request.args['id'])
-    return NetworkAPIResult(layer.getFeatures(None))
+    """
+    Return information about features of the given vector layer.
+
+    This might produce very big results. To retrieve information about the currently selected features only, see /qgis/mapLayer/selectedFeatures
+
+    TODO: add passing and parsing of a QgsFeatureRequest to limit results.
+
+    GET arguments:
+        id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
+
+        geometry (optional): if set, returns all feature information including their geometry in GeoJSON format
+
+    Returns:
+        If the 'geometry' argument was passed: a GeoJSON FeatureCollection with complete data for all features of the layer.
+        If the 'geometry' argument was not passed: a list of all features of the vector layer in JSON format, where each feature is an object specifying the feature's 'id' and all its 'attributes'.
+    """
+    layer = qgis_layer_by_id_or_current(iface, request)
+    # TODO parse and apply QgsFeatureRequest
+
+    if request.args.get('geometry') != None:
+        return NetworkAPIResult(toGeoJSON(layer, layer.getFeatures()), 'application/geo+json')
+    else:
+        # note that the lazy QgsFeatureIterator returned here is currently
+        # turned into a full in-memory list during conversion to JSON
+        return NetworkAPIResult(layer.getFeatures())
+
+@networkapi('/qgis/mapLayer/selectedFeatureCount')
+def mapLayer_selectedFeatureCount(iface, request):
+    """
+    Return the number of features that are selected in the given vector layer.
+
+    GET arguments:
+        id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
+
+    Returns:
+        An integer indicating the number of items that would be returned by the corresponding call to /qgis/mapLayer/selectedFeatures
+    """
+    layer = qgis_layer_by_id_or_current(iface, request)
+    return NetworkAPIResult(layer.selectedFeatureCount())
+
+
+from qgis.core import QgsVectorLayer
 
 @networkapi('/qgis/mapLayer/selectedFeatures')
 def mapLayer_selectedFeatures(iface, request):
@@ -167,17 +227,15 @@ def mapLayer_selectedFeatures(iface, request):
 
     Returns ids and attributes of the features only. In order to also retrieve the geometry as well as layer information of the features (in proper GeoJSON), see /qgis/mapLayer/selectedFeatures/geometry
 
+    To retrieve *all* features of the layer that are available from its provider, see /qgis/mapLayer/getFeatures
+
     GET arguments:
         id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
 
     Returns:
         A list of all currently selected features in JSON format, where each feature is an object specifying the feature's 'id' and all its 'attributes'.
     """
-    # if 'id' arg was not passed, default to currentLayer()
-    if request.args.get('id'):
-        layer = qgis_layer_by_id(request.args['id'])
-    else:
-        layer = iface.mapCanvas().currentLayer()
+    layer = qgis_layer_by_id_or_current(iface, request)
     # FIXME this sometimes returns empty attributes and id of 0 for some
     # elements, maybe retrieve features via their id instead?
     return NetworkAPIResult(layer.selectedFeatures())
@@ -193,14 +251,10 @@ def mapLayer_selectedFeatures_geometry(iface, request):
         id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
 
     Returns:
-        Complete data of all selected features in GeoJSON format.
+        A GeoJSON FeatureCollection with complete data of all selected features of the given vector layer.
     """
-    if request.args.get('id'):
-        layer = qgis_layer_by_id(request.args['id'])
-    else:
-        layer = iface.mapCanvas().currentLayer()
+    layer = qgis_layer_by_id_or_current(iface, request)
     return NetworkAPIResult(toGeoJSON(layer, layer.selectedFeatures()), 'application/geo+json')
-#    return NetworkAPIResult([f.geometry() for f in layer.selectedFeatures()])
 
 from PyQt4.QtXml import QDomDocument
 
@@ -445,4 +499,21 @@ def mapCanvas_zoomToFullExtent(iface, _):
         The new scale of the canvas (a single float)
     """
     iface.mapCanvas().zoomToFullExtent()
+    return NetworkAPIResult(iface.mapCanvas().scale())
+
+@networkapi('/qgis/mapCanvas/zoomToSelected')
+def mapCanvas_zoomToSelected(iface, request):
+    """
+    Zoom to the extent of the selected features of current (vector) layer.
+
+    GET arguments:
+        layer (string): optionally specify different than current layer
+
+    Returns:
+        The new scale of the canvas (a single float)
+    """
+    if request.args.get('layer'):
+        iface.mapCanvas().zoomToSelected(qgis_layer_by_id(request.args['layer']))
+    else:
+        iface.mapCanvas().zoomToSelected()
     return NetworkAPIResult(iface.mapCanvas().scale())
