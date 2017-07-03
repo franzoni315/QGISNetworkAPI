@@ -29,7 +29,7 @@ import resources
 
 # Import the code for the dialog
 from network_api_dialog import NetworkAPIDialog
-from network_api_server import NetworkAPIServer
+from .server import NetworkAPIServer
 import os.path
 
 class NetworkAPI:
