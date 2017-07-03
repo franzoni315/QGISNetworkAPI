@@ -2,13 +2,13 @@ from json import dump
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtNetwork import QHostAddress, QTcpServer
 from network_api_dialog import NetworkAPIDialog
-from network_api_registry import QGISJSONEncoder, Registry
+from .registry import QGISJSONEncoder, Registry
 from qgis.core import QgsMessageLog
 from qgis.gui import QgsMessageBar
 
 # TODO how to run the two files without actually importing anything?
-import .functions
-import .doc
+from . import functions
+from . import doc
 
 class NetworkAPIServer(QTcpServer):
 
