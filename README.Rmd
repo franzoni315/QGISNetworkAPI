@@ -15,7 +15,7 @@ The plugin is currently under development so there is not a whole lot of (reliab
 1. Install the plugin into your $QGIS_HOME/plugins/ folder, either by `git clone`ing this repository or by downloading the latest snapshot as a [zip file](https://gitlab.com/qgisapi/networkapi/repository/archive.zip?ref=master).
 2. In QGIS (2.*), activate the plugin under Plugins > Manage and Install Plugins > 'Network API'
 3. Once activated, the plugin will automatically start listening for (and accept all) connections on port 8090. (The plugin dialog is currently just a mockup, it is not configurable yet.)
-4. Access the web service API, currently implemented requests/paths can be found [here](https://gitlab.com/qgisapi/networkapi/blob/master/network_api_functions.py). Some example commands that can be run from your console:
+4. Access the web service API, currently implemented requests/paths can be found [here](https://gitlab.com/qgisapi/networkapi/blob/master/functions.py). Some example commands that can be run from your console:
 
 ```{bash}
 # make sure QGIS Desktop 2.* is running with the Network Plugin enabled, then:

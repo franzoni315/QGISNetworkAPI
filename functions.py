@@ -7,7 +7,7 @@
 #
 # the functions should return an instance of NetworkAPIResult
 
-from network_api_registry import networkapi, NetworkAPIResult, toGeoJSON
+from .registry import networkapi, NetworkAPIResult, toGeoJSON
 from qgis.core import QgsMapLayerRegistry, QgsVectorFileWriter
 
 # TODO add simple function to simplify wrapping argument-free function calls

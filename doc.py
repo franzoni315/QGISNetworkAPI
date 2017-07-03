@@ -1,4 +1,4 @@
-from network_api_registry import Registry, networkapi, NetworkAPIResult
+from .registry import Registry, networkapi, NetworkAPIResult
 from string import join
 
 def wrap_in_html(body):
