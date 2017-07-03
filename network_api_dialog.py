@@ -25,7 +25,7 @@ import os
 
 from PyQt4 import uic
 from PyQt4.QtGui import QDialog, QDialogButtonBox, QIntValidator
-from network_api_settings import NetworkAPISettings
+from .settings import NetworkAPISettings
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'network_api_dialog_base.ui'))
