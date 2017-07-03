@@ -7,7 +7,7 @@ from qgis.core import QgsMessageLog
 from qgis.gui import QgsMessageBar
 
 # TODO how to run the two files without actually importing anything?
-import network_api_functions
+import .functions
 import network_api_doc
 
 class NetworkAPIServer(QTcpServer):
