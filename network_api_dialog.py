@@ -24,6 +24,7 @@
 import os
 
 from PyQt4 import uic
+from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtGui import QDialog, QDialogButtonBox, QIntValidator
 from .settings import NetworkAPISettings
 
@@ -34,6 +35,10 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
 class NetworkAPIDialog(QDialog, FORM_CLASS):
 
     settings = NetworkAPISettings()
+
+    # emitted when a server-relevant config setting has changed, requiring a
+    # restart of the server
+    server_port_changed = pyqtSignal()
 
     def __init__(self, parent=None):
         """Constructor."""
@@ -54,18 +59,21 @@ class NetworkAPIDialog(QDialog, FORM_CLASS):
         self.log.setChecked(NetworkAPIDialog.settings.log())
 
     def saveSettings(self):
+        portChanged = self.port.text() != str(NetworkAPIDialog.settings.port())
         NetworkAPIDialog.settings.setValue('port', self.port.text())
         NetworkAPIDialog.settings.setValue('remote_connections', self.remote_connections.isChecked())
         NetworkAPIDialog.settings.setValue('security', self.security.currentIndex())
         NetworkAPIDialog.settings.setValue('auth', self.auth.text())
         NetworkAPIDialog.settings.setValue('log', self.log.isChecked())
 
+        # trigger server restart if port has changed
+        if portChanged:
+            self.server_port_changed.emit()
+
     def handleButtonClick(self, button):
         sb = self.buttons.standardButton(button)
         # this could be more elegant by conditioning on button *roles*..
         if sb == QDialogButtonBox.Apply or sb == QDialogButtonBox.Ok:
-            # TODO check if port, remote_connections or auth changed, if so
-            # trigger server restart after saving
             self.saveSettings()
         else: # Reset or Cancel
             self.loadSettings()

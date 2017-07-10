@@ -1,8 +1,8 @@
 from PyQt4.QtCore import QSettings
 
-# a QSettings object wrapped into its own class to provide type-specific
-# get accessors with correct default values 
 class NetworkAPISettings(QSettings):
+    """A QSettings object wrapped into its own class to provide type-specific get accessors with correct default values"""
+
     def __init__(self):
         # on Linux, this will be $HOME/.config/QGIS/NetworkAPI.ini
         QSettings.__init__(self, QSettings.IniFormat, QSettings.UserScope, 'QGIS', 'NetworkAPI')
@@ -11,10 +11,12 @@ class NetworkAPISettings(QSettings):
         return self.value('port', 8090, int)
 
     def remote_connections(self):
+        # allow only local (IPv4) connections by default
         return self.value('remote_connections', False, bool)
 
     def security(self):
-        return self.value('security', 0, int) # no security a good default?
+        # no security an ok default if only local connections are allowed anyway
+        return self.value('security', 0, int)
 
     def auth(self):
         return self.value('auth', '', unicode)

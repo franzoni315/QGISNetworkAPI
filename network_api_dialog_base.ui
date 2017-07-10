@@ -144,7 +144,7 @@
       <bool>true</bool>
      </property>
      <property name="text">
-      <string>Log plugin activity to QGIS status bar</string>
+      <string>Show plugin activity messages in QGIS status bar</string>
      </property>
     </widget>
    </item>

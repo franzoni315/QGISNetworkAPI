@@ -174,26 +174,32 @@ class NetworkAPI:
         self.statusbutton.setText('Network API plugin')
         # TODO set initial tooltip?
 
-        self.statusbutton.clicked.connect(self.toggle_server)
-        self.dlg.toggle.clicked.connect(self.toggle_server)
+        self.statusbutton.clicked.connect(self.toggleServer)
+        self.dlg.toggle.clicked.connect(self.toggleServer)
+        self.dlg.server_port_changed.connect(self.serverConfigChanged)
 
         self.iface.mainWindow().statusBar().addPermanentWidget(self.statusbutton)
 
         # connect server signals to update status button etc
-        self.serversingleton.status_changed.connect(self.server_status_changed)
+        self.serversingleton.status_changed.connect(self.serverStatusChanged)
 
-    def toggle_server(self, toggled):
+    def toggleServer(self, toggled):
         if toggled:
-            self.serversingleton.startServer(8090)
+            self.serversingleton.startServer(NetworkAPIDialog.settings.port())
         else:
             self.serversingleton.stopServer()
 
-    def server_status_changed(self, status, description):
+    def serverConfigChanged(self):
+        if self.serversingleton.isListening():
+            self.toggleServer(True)
+
+    def serverStatusChanged(self, status, description):
         # only 0 = off
         self.statusbutton.setChecked(bool(status))
         self.statusbutton.setToolTip(description)
         self.dlg.status.setText(description)
         self.dlg.toggle.setChecked(bool(status))
+        self.dlg.toggle.setText('Disable API' if bool(status) else 'Enable API')
 
         if status == 2: # receiving data
             self.statusbutton.setStyleSheet('background-color: yellow;')

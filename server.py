@@ -19,6 +19,7 @@ class NetworkAPIServer(QTcpServer):
 
     def signal_status (self, status, message = ''):
         # TODO fill in default paused/running messages for status 0+1
+        self.log(message)
         self.status_changed.emit(status, message)
 
     def __init__(self, iface):
@@ -32,19 +33,24 @@ class NetworkAPIServer(QTcpServer):
 #        self.startServer(NetworkAPIDialog.settings.port())
 
     def log(self, message, level=QgsMessageLog.INFO):
+        "Print a message to QGIS' Log Messages Panel"
         QgsMessageLog.logMessage(message, 'NetworkAPI', level=level)
 
     def status(self, message, level=QgsMessageBar.INFO):
+        "If enabled by the config, display a log message in QGIS' message bar"
         # always log
-        self.log(message, level % 3) # map SUCCESS to INFO
+        # the message bar and log panel have different message status ranges -
+        # the modulo (%) merely maps the messages' SUCCESS status to the log
+        # panel's INFO
+        self.log(message, level % 3)
         if NetworkAPIDialog.settings.log():
-            self.iface.messageBar().pushMessage('Network API', message, level)
+            self.iface.messageBar().pushMessage('Network API', message, level, 3)
 
     def stopServer(self):
         if self.isListening():
             self.log('Stopping to listen on port ' + str(self.serverPort()))
             self.close()
-            self.signal_status(0, 'Server stopped')
+            self.signal_status(0, 'Network API disabled')
 
     def startServer(self, port):
         self.stopServer()
@@ -56,7 +62,6 @@ class NetworkAPIServer(QTcpServer):
         self.newConnection.connect(self.new_connection)
         if self.listen(QHostAddress.Any, port):
             self.signal_status(1, 'Listening on port ' + str(self.serverPort()))
-            self.log('Listening for Network API requests on port ' + str(self.serverPort()))
         else:
             self.status('Error: failed to open socket on port ' + str(port), QgsMessageBar.CRITICAL)
 
@@ -91,13 +96,14 @@ class NetworkAPIServer(QTcpServer):
             self.new_connection()
 
     def process_data(self):
-        self.signal_status(2, 'Receiving data...')
         # readAll() doesn't guarantee that there isn't any more data still
         # incoming before reaching the 'end' of the input stream (which, for
         # network connections, is ill-defined anyway). in order to be able to
         # parse incoming requests incrementally, we store the parse request
         # header in a class variable.
+        # TODO add QTimer
         if self.request == None:
+            self.signal_status(2, 'Connection opened...')
             if not self.connection.canReadLine():
                 self.log('Warning: readyRead() was signalled before full HTTP request line was available for reading (' + str(self.connection.bytesAvailable()) + ' bytes in buffer)', QgsMessageLog.WARNING)
                 return
@@ -127,7 +133,7 @@ class NetworkAPIServer(QTcpServer):
             # TODO do we care about whether correct HTTP method was used (405)?
 
             if self.request.command == 'POST':
-                self.status('POST data: received ' + str(len(self.request.headers.get_payload())) + ' of ' + str(self.request.content_length))
+                self.signal_status(2, 'Processing request: received ' + str(len(self.request.headers.get_payload())) + ' of ' + str(self.request.content_length))
 
                 if len(self.request.headers.get_payload()) < self.request.content_length:
                     # request body incomplete, wait for more data to arrive.
