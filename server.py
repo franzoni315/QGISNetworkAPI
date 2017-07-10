@@ -1,12 +1,11 @@
 from json import dump
-from PyQt4.QtCore import pyqtSignal
+from PyQt4.QtCore import pyqtSignal, QTimer
 from PyQt4.QtNetwork import QHostAddress, QTcpServer
 from network_api_dialog import NetworkAPIDialog
 from .registry import QGISJSONEncoder, Registry
 from qgis.core import QgsMessageLog
 from qgis.gui import QgsMessageBar
 
-# TODO how to run the two files without actually importing anything?
 from . import functions
 from . import doc
 
@@ -17,8 +16,13 @@ class NetworkAPIServer(QTcpServer):
     # 3 = processing request (busy/blocking)
     status_changed = pyqtSignal(int, str)
 
-    def signal_status (self, status, message = ''):
-        # TODO fill in default paused/running messages for status 0+1
+    def emitStatusSignal (self, status, message = None):
+        # fill in default paused/running messages for status 0+1
+        if message == None:
+            if status == 0:
+                message = 'Network API disabled'
+            elif status == 1:
+                message = 'Listening on port ' + str(self.serverPort())
         self.log(message)
         self.status_changed.emit(status, message)
 
@@ -26,8 +30,15 @@ class NetworkAPIServer(QTcpServer):
         QTcpServer.__init__(self)
         self.iface = iface
 
+        # TODO trigger different method which checks project-specific settings
         self.iface.newProjectCreated.connect(self.stopServer)
         self.iface.projectRead.connect(self.stopServer)
+
+        # timer for interrupting open connections on inactivity
+        self.timer = QTimer()
+        self.timer.setInterval(3000) # 3 seconds, worth making configurable?
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.timeout)
 
         # TODO: read project-specific on/off setting, start server if desired
 #        self.startServer(NetworkAPIDialog.settings.port())
@@ -36,7 +47,7 @@ class NetworkAPIServer(QTcpServer):
         "Print a message to QGIS' Log Messages Panel"
         QgsMessageLog.logMessage(message, 'NetworkAPI', level=level)
 
-    def status(self, message, level=QgsMessageBar.INFO):
+    def showMessage(self, message, level=QgsMessageBar.INFO):
         "If enabled by the config, display a log message in QGIS' message bar"
         # always log
         # the message bar and log panel have different message status ranges -
@@ -44,13 +55,16 @@ class NetworkAPIServer(QTcpServer):
         # panel's INFO
         self.log(message, level % 3)
         if NetworkAPIDialog.settings.log():
-            self.iface.messageBar().pushMessage('Network API', message, level, 3)
+            # TODO make message timeout configurable? 
+            self.iface.messageBar().pushMessage('Network API', message, level, 5)
 
     def stopServer(self):
         if self.isListening():
             self.log('Stopping to listen on port ' + str(self.serverPort()))
+            # open/running requests are automatically wrapped up through their
+            # 'disconnect' signal triggering finishConnection()
             self.close()
-            self.signal_status(0, 'Network API disabled')
+            self.emitStatusSignal(0)
 
     def startServer(self, port):
         self.stopServer()
@@ -59,51 +73,44 @@ class NetworkAPIServer(QTcpServer):
         self.request = None
         self.nrequests = 0
 
-        self.newConnection.connect(self.new_connection)
+        self.newConnection.connect(self.acceptConnection)
         if self.listen(QHostAddress.Any, port):
-            self.signal_status(1, 'Listening on port ' + str(self.serverPort()))
+            self.emitStatusSignal(1)
         else:
-            self.status('Error: failed to open socket on port ' + str(port), QgsMessageBar.CRITICAL)
+            self.showMessage('Error: failed to open socket on port ' + str(port), QgsMessageBar.CRITICAL)
 
-    def new_connection(self):
-        # only accept connection if we're not still busy processing the
-        # previous one (in which case the new one will be taken care of when
-        # current one finishes, see call to hasPendingConnections() in
-        # connection_ended() below)
+    def acceptConnection(self):
+        """Accept a new incoming connection request. If the server is still
+        busy processing an earlier request, the function returns immediately and the new incoming connection will be taken care of when the current
+        request is finished (see the call to hasPendingConnections() in
+        finishConnection() below)"""
         if self.connection == None:
             cxn = self.nextPendingConnection()
             if not NetworkAPIDialog.settings.remote_connections() and cxn.peerAddress() != QHostAddress.LocalHost: # FIXME .LocalHostIPv6?
-                self.status('Refusing remote connection from ' + cxn.peerAddress().toString(), QgsMessageBar.WARNING)
+                self.showMessage('Refusing remote connection from ' + cxn.peerAddress().toString(), QgsMessageBar.WARNING)
                 cxn.close()
                 return
             self.connection = cxn
             self.nrequests = self.nrequests + 1
             self.log('Processing connection #' + str(self.nrequests) + ' (' + self.connection.peerAddress().toString() + ')')
-            self.connection.disconnected.connect(self.connection_ended)
-            self.connection.readyRead.connect(self.process_data)
-            self.process_data()
+            self.connection.disconnected.connect(self.finishConnection)
+            self.connection.readyRead.connect(self.readFromConnection)
+            self.readFromConnection()
         else:
             self.log('Still busy with #' + str(self.nrequests) + ', putting incoming connection on hold...')
 
-    def connection_ended(self):
-        self.log('Disconnecting #' + str(self.nrequests) + ' (' + self.connection.peerAddress().toString() + ')')
-        self.connection.readyRead.disconnect(self.process_data)
-        self.request = None
-        self.connection = None
-        # process waiting connections
-        if self.hasPendingConnections():
-            self.log('Found pending connection, processing..')
-            self.new_connection()
-
-    def process_data(self):
+    def readFromConnection(self):
         # readAll() doesn't guarantee that there isn't any more data still
         # incoming before reaching the 'end' of the input stream (which, for
         # network connections, is ill-defined anyway). in order to be able to
         # parse incoming requests incrementally, we store the parse request
         # header in a class variable.
-        # TODO add QTimer
+
+        # (re)set connection timeout
+        self.timer.start()
+
         if self.request == None:
-            self.signal_status(2, 'Connection opened...')
+            self.emitStatusSignal(2, 'Connection opened...')
             if not self.connection.canReadLine():
                 self.log('Warning: readyRead() was signalled before full HTTP request line was available for reading (' + str(self.connection.bytesAvailable()) + ' bytes in buffer)', QgsMessageLog.WARNING)
                 return
@@ -117,10 +124,9 @@ class NetworkAPIServer(QTcpServer):
             while self.connection.waitForReadyRead(0):
                 self.request.headers.set_payload(self.request.headers.get_payload() + self.connection.readAll())
         # respond to request or -- if data is still incomplete -- do nothing
-        self.process_request()
+        self.processRequest()
 
-    def process_request(self):
-        self.signal_status(3, 'Processing request...')
+    def processRequest(self):
         # TODO check authorisation, send 401
         # inspect request.headers['Authorization']
 
@@ -133,7 +139,7 @@ class NetworkAPIServer(QTcpServer):
             # TODO do we care about whether correct HTTP method was used (405)?
 
             if self.request.command == 'POST':
-                self.signal_status(2, 'Processing request: received ' + str(len(self.request.headers.get_payload())) + ' of ' + str(self.request.content_length))
+                self.emitStatusSignal(2, 'Processing request: received ' + str(len(self.request.headers.get_payload())) + ' of ' + str(self.request.content_length))
 
                 if len(self.request.headers.get_payload()) < self.request.content_length:
                     # request body incomplete, wait for more data to arrive.
@@ -143,16 +149,35 @@ class NetworkAPIServer(QTcpServer):
                     # connections open do not block the plugin?
 
             # looks like we have all the data, execute call
-            self.perform_request(qgis_call)
+            self.timer.stop()
+            self.emitStatusSignal(3, 'Executing request...')
+            self.executeRequest(qgis_call)
 
-        self.status('Processed request #' + str(self.nrequests) + ': ' + self.request.log_string)#, QgsMessageBar.SUCCESS)
+        self.showMessage('Executed request #' + str(self.nrequests) + ': ' + self.request.log_string)#, QgsMessageBar.SUCCESS)
         # pass output generated by BaseHTTPRequestHandler on to the QTcpSocket
         self.connection.write(self.request.wfile.getvalue())
         # flush response and close connection (i.e. no persistent connections)
         self.connection.disconnectFromHost()
-        self.signal_status(1)
 
-    def perform_request(self, qgis_call):
+    def timeout(self):
+        self.showMessage('Connection timed out after ' + str(self.timer.interval()) + 'ms', QgsMessageBar.WARNING)
+        self.finishConnection()
+
+    def finishConnection(self):
+        self.log('Disconnecting #' + str(self.nrequests) + ' (' + self.connection.peerAddress().toString() + ')')
+        self.connection.readyRead.disconnect(self.readFromConnection)
+        self.connection.disconnected.disconnect(self.finishConnection)
+        self.request = None
+        self.connection = None
+        # process waiting connections
+        if self.hasPendingConnections():
+            self.log('Found pending connection, processing..')
+            self.acceptConnection()
+        else:
+            # back to listening
+            self.emitStatusSignal(1)
+
+    def executeRequest(self, qgis_call):
         try:
             result = qgis_call(self.iface, self.request)
             self.request.send_response(result.status)
@@ -210,7 +235,8 @@ class NetworkAPIRequest(BaseHTTPRequestHandler):
             # parse key=value pairs, keep keys with blank values
             self.args = dict(parse_qsl(parsed_path[4], True))
         else:
-            self.status('Invalid request, should probably force disconnect?', QgsMessageBar.WARNING)
+            self.showMessage('Invalid request, should probably force disconnect?', QgsMessageBar.WARNING)
+            # TODO throw exception
 
     def send_http_error(self, code, message=None):
         if message == None:
