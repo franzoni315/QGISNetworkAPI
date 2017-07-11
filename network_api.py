@@ -169,10 +169,8 @@ class NetworkAPI:
             parent=self.iface.mainWindow())
 
         self.statusbutton = QCheckBox()
-        # replace checkbox with icon that is b/w when button is not checked
-#        self.statusbutton.setStyleSheet('QCheckBox::icon::checked { image: url(:/plugins/NetworkAPI/icon.png);} QCheckBox::icon::unchecked { image: url(:/plugins/NetworkAPI/icon-bw.png);}')
-        self.statusbutton.setText('Network API plugin')
-        # TODO set initial tooltip?
+        self.statusbutton.setText('Network API')
+        self.statusbutton.setToolTip('Network API plugin loaded but not running - click to start listening for HTTP requests')
 
         self.statusbutton.clicked.connect(self.toggleServer)
         self.dlg.toggle.clicked.connect(self.toggleServer)
@@ -190,26 +188,29 @@ class NetworkAPI:
             self.serversingleton.stopServer()
 
     def serverConfigChanged(self):
+        """If the config dialog signals a change to the server port and the server is running, restart straightaway."""
         if self.serversingleton.isListening():
             self.toggleServer(True)
 
     def serverStatusChanged(self, status, description):
-        # only 0 = off
-        self.statusbutton.setChecked(bool(status))
-        self.statusbutton.setToolTip(description)
-        self.dlg.status.setText(description)
-        self.dlg.toggle.setChecked(bool(status))
-        self.dlg.toggle.setText('Disable API' if bool(status) else 'Enable API')
-
+        """Update GUI status components, triggered by the server signaling a change of state."""
+        # update status bar button
         if status == 2: # receiving data
             self.statusbutton.setStyleSheet('background-color: yellow;')
         elif status == 3: # processing request (blocking)
             self.statusbutton.setStyleSheet('background-color: red;')
         elif status == 1: # listening
             self.statusbutton.setStyleSheet('')
-        else: # off
+        else: # only 0 = server is switched off
             self.statusbutton.setStyleSheet('')
 
+        self.statusbutton.setChecked(bool(status))
+        self.statusbutton.setToolTip(description)
+
+        # update text field and toggle button in the plugin config dialog
+        self.dlg.status.setText(description)
+        self.dlg.toggle.setChecked(bool(status))
+        self.dlg.toggle.setText('Disable API' if bool(status) else 'Enable API')
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
