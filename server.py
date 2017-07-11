@@ -31,7 +31,7 @@ class NetworkAPIServer(QTcpServer):
         self.iface = iface
 
         # TODO trigger different method which checks project-specific settings
-        self.iface.newProjectCreated.connect(self.stopServer)
+#        self.iface.newProjectCreated.connect(self.stopServer)
         self.iface.projectRead.connect(self.stopServer)
 
         # timer for interrupting open connections on inactivity

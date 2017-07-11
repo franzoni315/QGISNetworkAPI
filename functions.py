@@ -83,6 +83,12 @@ def addVectorLayer(iface, request):
         filename = request.args['url']
     return NetworkAPIResult(iface.addVectorLayer(filename, request.args.get('name', ''), request.args.get('providerKey', 'ogr')))
 
+@networkapi('/qgis/newProject')
+def mapLayers_count(iface, _):
+    """Start a blank project. Warning: does *not* prompt to save changes to the currently open project!"""
+    return NetworkAPIResult(iface.newProject())
+
+
 # http://qgis.org/api/2.18/classQgsMapLayerRegistry.html
 @networkapi('/qgis/mapLayers/count')
 def mapLayers_count(iface, _):
