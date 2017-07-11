@@ -8,7 +8,7 @@
 # the functions should return an instance of NetworkAPIResult
 
 from .registry import networkapi, NetworkAPIResult, toGeoJSON
-from qgis.core import QgsMapLayerRegistry, QgsVectorFileWriter
+from qgis.core import QgsMapLayerRegistry, QgsPoint, QgsVectorFileWriter
 
 # TODO add simple function to simplify wrapping argument-free function calls
 
@@ -396,6 +396,18 @@ def mapCanvas_saveAsImage(iface, request):
 @networkapi('/qgis/mapCanvas/center')
 def mapCanvas_center(iface, _):
     """Get map center, in geographical coordinates."""
+    return NetworkAPIResult(iface.mapCanvas().center())
+
+@networkapi('/qgis/mapCanvas/setCenter')
+def mapCanvas_setCenter(iface, request):
+    """Set the center of the map canvas, in geographical coordinates.
+
+    GET arguments:
+        x (float): new x coordinate of the map canvas center
+        y (float): new y coordinate of the map canvas center
+    """
+    center = QgsPoint(float(request.args['x']), float(request.args['y']))
+    iface.mapCanvas().setCenter(center)
     return NetworkAPIResult(iface.mapCanvas().center())
 
 @networkapi('/qgis/mapCanvas/extent')
