@@ -11,7 +11,7 @@ def wrap_command(path, function, short=False):
         else:
             return '<dt>' + path + '</dt><dd>not documented</dd>'
     else:
-         return '<dt>' + path + '</dt><dd><pre>' + function.__doc__ + '</pre></dd><a href="' + path + '">go there</a>'
+         return '<dt>' + path + '</dt><dd><pre style="max-width:80%;white-space: pre-wrap;">' + function.__doc__ + '</pre></dd><a href="' + path + '">go there</a>'
 
 @networkapi('/api')
 def api_docs(iface, request):

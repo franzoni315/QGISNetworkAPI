@@ -8,7 +8,7 @@
 # the functions should return an instance of NetworkAPIResult
 
 from .registry import networkapi, NetworkAPIResult, toGeoJSON
-from qgis.core import QgsMapLayerRegistry, QgsPoint, QgsVectorFileWriter
+from qgis.core import QgsExpression, QgsExpressionContext, QgsFeatureRequest, QgsMapLayerRegistry, QgsPoint, QgsRectangle, QgsVectorFileWriter
 
 # TODO add simple function to simplify wrapping argument-free function calls
 
@@ -34,7 +34,7 @@ def addRasterLayer(iface, request):
 
     2. as raster data in the request body of a POST request
 
-    GET arguments:
+    HTTP query arguments:
         name (string, optional): name for the new layer
         url (string, optional): url to WMS dataset to be added as a new layer
         providerKey (string, optional): QGIS provider key (default: 'ogr')
@@ -63,7 +63,7 @@ def addVectorLayer(iface, request):
 
     2. as GeoJSON data in the request body of a POST request (support for other formats to be added later)
 
-    GET arguments:
+    HTTP query arguments:
         name (string, optional): name for the new layer
         url (string, optional): QGIS provider string to a local or external vector data source
         providerKey (string, optional): QGIS provider key (default: 'ogr')
@@ -128,7 +128,7 @@ def mapLayers_removeMapLayer(iface, request):
 
     The specified layer will be removed from the registry. If the registry has ownership of the layer then it will also be deleted.
 
-    GET arguments:
+    HTTP query arguments:
         id (string): ID of the layer to be removed
     """
     layer = qgis_layer_by_id(request.args['id'])
@@ -144,7 +144,7 @@ def mapLayer(iface, request):
 
     For information about all registered layers and their IDs, see /qgis/mapLayers
 
-    GET arguments:
+    HTTP query arguments:
         id (string): ID of layer to retrieve
 
     Returns:
@@ -157,7 +157,7 @@ def mapLayer_featureCount(iface, request):
     """
     Return feature count of the given vector layer.
 
-    GET arguments:
+    HTTP query arguments:
         id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
 
     Returns:
@@ -174,47 +174,77 @@ def mapLayer_fields(iface, request):
 
     This also includes fields which have not yet been saved to the provider.
 
-    GET arguments:
+    HTTP query arguments:
         id (string): ID of layer whose fields to retrieve
     """
     layer = qgis_layer_by_id(request.args['id'])
     return NetworkAPIResult(layer.fields())
 
-# TODO parse QgsFeatureRequest from POST body
 @networkapi('/qgis/mapLayer/getFeatures')
 def mapLayer_getFeatures(iface, request):
     """
     Return information about features of the given vector layer.
 
-    This might produce very big results. To retrieve information about the currently selected features only, see /qgis/mapLayer/selectedFeatures
+    Retrieve information about features of the given vector layer by querying the underlying datasource programmatically. To retrieve features that were manually selected by the user within QGIS, see /qgis/mapLayer/selectedFeatures
 
-    TODO: add passing and parsing of a QgsFeatureRequest to limit results.
 
-    GET arguments:
+    HTTP query arguments:
         id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
 
         geometry (optional): if set, returns all feature information including their geometry in GeoJSON format
 
+
+    The different ways to filter features follow the different constructor signatures defined by the QgsFeatureRequest class, in particular:
+
+        If the request is a HTTP POST request, the request body is treated as a QGIS filter expression, and the result of applying that filter is returned.
+
+        If the request is a HTTP GET request, the following query arguments are considered in order, and the first one provided is applied:
+
+            fid (optional): Construct a request with a QGIS feature ID filter
+
+            rect (optional): Construct a request with a rectangle filter. The rectangle should be specific as four numbers in the format "xmin,ymin,xmax,ymax".
+
+            A GET request in which none of the arguments are specified returns ALL features of the given vector layer, which can produce very large results.
+
+
     Returns:
-        If the 'geometry' argument was passed: a GeoJSON FeatureCollection with complete data for all features of the layer.
+        If the 'geometry' argument was passed: a GeoJSON FeatureCollection with complete attribute and geometry data for all features of the layer.
         If the 'geometry' argument was not passed: a list of all features of the vector layer in JSON format, where each feature is an object specifying the feature's 'id' and all its 'attributes'.
     """
     layer = qgis_layer_by_id_or_current(iface, request)
-    # TODO parse and apply QgsFeatureRequest
 
-    if request.args.get('geometry') != None:
-        return NetworkAPIResult(toGeoJSON(layer, layer.getFeatures()), 'application/geo+json')
+    # construct and run QgsFeatureRequest depending on arguments
+
+    if request.command == 'POST':
+        # POST request: complex QgsExpression passed as string
+        featurerequest = QgsFeatureRequest(QgsExpression(request.headers.get_payload()))
+        # TODO figure out how to work with QgsExpressionContext
+        result = layer.getFeatures(featurerequest, QgsExpressionContext())
+    elif request.args.get('fid'):
+        # query by feature id
+        result = layer.getFeatures(QgsFeatureRequest(int(request.args['fid'])))
+    elif request.args.get('rect'):
+        # query by rectangle
+        r = [float(x) for x in request.args['rect'].split(',')]
+        if len(r) != 4:
+            raise ValueError('"rect" argument to getFeatures requires exactly four floats in the format "xmin,ymin,xmax,ymax"')
+        result = layer.getFeatures(QgsFeatureRequest(QgsRectangle(r[0], r[1], r[2], r[3])))
     else:
+        result = layer.getFeatures()
+
+    if request.args.get('geometry') == None:
         # note that the lazy QgsFeatureIterator returned here is currently
         # turned into a full in-memory list during conversion to JSON
-        return NetworkAPIResult(layer.getFeatures())
+        return NetworkAPIResult(result)
+    else:
+        return NetworkAPIResult(toGeoJSON(layer, result), 'application/geo+json')
 
 @networkapi('/qgis/mapLayer/selectedFeatureCount')
 def mapLayer_selectedFeatureCount(iface, request):
     """
     Return the number of features that are selected in the given vector layer.
 
-    GET arguments:
+    HTTP query arguments:
         id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
 
     Returns:
@@ -235,7 +265,7 @@ def mapLayer_selectedFeatures(iface, request):
 
     To retrieve *all* features of the layer that are available from its provider, see /qgis/mapLayer/getFeatures
 
-    GET arguments:
+    HTTP query arguments:
         id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
 
     Returns:
@@ -253,7 +283,7 @@ def mapLayer_selectedFeatures_geometry(iface, request):
 
     To inspect the feature ids and attributes only, see /qgis/mapLayer/selectedFeatures
 
-    GET arguments:
+    HTTP query arguments:
         id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
 
     Returns:
@@ -270,7 +300,7 @@ def mapLayer_xml(iface, request):
     """
     Retrieve or set the definition of the layer with the given id.
 
-    GET arguments:
+    HTTP query arguments:
         id (string): ID of layer whose definition to retrieve or set
 
     Returns:
@@ -297,7 +327,7 @@ def mapLayer_style(iface, request):
     """
     Retrieve or set the style for the layer with the given id.
 
-    GET arguments:
+    HTTP query arguments:
         id (string): ID of layer whose stylesheet to retrieve or set
 
     Returns:
@@ -363,7 +393,7 @@ def mapCanvas_saveAsImage(iface, request):
     """
     Return the currently visible content of the map canvas as an image.
 
-    GET arguments:
+    HTTP query arguments:
         format (optional): any image format string supported by QGIS' (default: 'png', other options e.g. 'jpeg')
 
     Returns:
@@ -402,7 +432,7 @@ def mapCanvas_center(iface, _):
 def mapCanvas_setCenter(iface, request):
     """Set the center of the map canvas, in geographical coordinates.
 
-    GET arguments:
+    HTTP query arguments:
         x (float): new x coordinate of the map canvas center
         y (float): new y coordinate of the map canvas center
     """
@@ -425,7 +455,7 @@ def mapCanvas_layer(iface, request):
     """
     Return the map layer at position index in the layer stack.
 
-    GET arguments:
+    HTTP query arguments:
         index (int): position index in the layer stack, between 0 and layerCount-1
     """
     return NetworkAPIResult(iface.mapCanvas().layer(int(request.args['index'])))
@@ -458,7 +488,7 @@ def mapCanvas_setMagnificationFactor(iface, request):
     """
     Sets the factor of magnification to apply to the map canvas.
 
-    GET arguments:
+    HTTP query arguments:
         factor (float): target magnification factor
     """
     return NetworkAPIResult(iface.mapCanvas().setMagnificationFactor(float(request.args['factor'])))
@@ -499,7 +529,7 @@ def mapCanvas_zoomScale(iface, request):
     """
     Zoom to a specific scale.
 
-    GET arguments:
+    HTTP query arguments:
         scale (float): target scale
 
     Returns:
@@ -524,7 +554,7 @@ def mapCanvas_zoomToSelected(iface, request):
     """
     Zoom to the extent of the selected features of current (vector) layer.
 
-    GET arguments:
+    HTTP query arguments:
         layer (string): optionally specify different than current layer
 
     Returns:
