@@ -193,19 +193,19 @@ def mapLayer_getFeatures(iface, request):
     """
     Return information about features of the given vector layer.
 
-    Retrieve information about features of the given vector layer by querying the underlying datasource programmatically. To retrieve features that were manually selected by the user within QGIS, see /qgis/mapLayer/selectedFeatures
+    Retrieve information about (and, optionally, geometry of) features of the given vector layer by querying the underlying datasource programmatically. To retrieve features that were manually selected by the user within QGIS, see /qgis/mapLayer/selectedFeatures
 
 
     HTTP query arguments:
         id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
 
-        geometry (optional): if set, returns all feature information including their geometry in GeoJSON format
+        geometry (optional, default false): if true, returns all feature information including their geometry in GeoJSON format. Accepts several string representations of booleans (e.g. 1, 0, true, false, yes, no, ...).
 
         orderBy (optional): expression that the results should be ordered by. If you want to order by a field, you'll have to give its name in quotes, e.g. ?orderBy="length"
 
-        ascending (optional, default 'true'): whether the results should be listen in ascending or descending order. Accepts several string representations of booleans (e.g. 1, 0, true, false, yes, no, ...)
+        ascending (optional, default true): whether the results should be listen in ascending or descending order. Accepts several string representations of booleans (e.g. 1, 0, true, false, yes, no, ...).
 
-        nullsfirst (optional): how null values should be treated in the ordering. Accepts several string representations of booleans (e.g. 1, 0, true, false, yes, no, ...)
+        nullsfirst (optional): how null values should be treated in the ordering. Accepts several string representations of booleans (e.g. 1, 0, true, false, yes, no, ...).
 
 
     The different ways to filter features follow the different constructor signatures defined by the QgsFeatureRequest class, in particular:
@@ -230,7 +230,7 @@ def mapLayer_getFeatures(iface, request):
     # construct and run QgsFeatureRequest depending on arguments
 
     featurerequest = QgsFeatureRequest()
-    featurerequest.addOrderBy(request.args.get('orderBy', ''), strtobool(request.args.get('ascending', 'y')), bool(request.args.get('nullsfirst')))
+    featurerequest.addOrderBy(request.args.get('orderBy', ''), strtobool(request.args.get('ascending', 'y')), strtobool(request.args.get('nullsfirst', 'n')))
 
     if request.command == 'POST':
         # POST request: complex QgsExpression passed as string
@@ -248,12 +248,12 @@ def mapLayer_getFeatures(iface, request):
 
     result = layer.getFeatures(featurerequest)
 
-    if request.args.get('geometry') == None:
+    if strtobool(request.args.get('geometry', 'n')):
+        return NetworkAPIResult(toGeoJSON(layer, result), 'application/geo+json')
+    else:
         # note that the lazy QgsFeatureIterator returned here is currently
         # turned into a full in-memory list during conversion to JSON
         return NetworkAPIResult(result)
-    else:
-        return NetworkAPIResult(toGeoJSON(layer, result), 'application/geo+json')
 
 @networkapi('/qgis/mapLayer/selectedFeatureCount')
 def mapLayer_selectedFeatureCount(iface, request):
