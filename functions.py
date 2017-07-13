@@ -8,7 +8,8 @@
 # the functions should return an instance of NetworkAPIResult
 
 from .registry import networkapi, NetworkAPIResult, toGeoJSON
-from qgis.core import QgsExpression, QgsExpressionContext, QgsFeatureRequest, QgsMapLayerRegistry, QgsPoint, QgsRectangle, QgsVectorFileWriter
+from distutils.util import strtobool
+from qgis.core import QgsExpression, QgsFeatureRequest, QgsMapLayerRegistry, QgsPoint, QgsRectangle, QgsVectorFileWriter
 
 # TODO add simple function to simplify wrapping argument-free function calls
 
@@ -30,14 +31,17 @@ def addRasterLayer(iface, request):
 
     The vector data can be provided in two ways:
 
-    1. from an external file, by providing a WMS url as a 'url' GET argument, in combination with a valid 'providerKey'
+    1. by providing a WMS url as a 'url' GET argument, in combination with a valid 'providerKey'
 
     2. as raster data in the request body of a POST request
 
+    3. from a file readable by QGIS, by giving the file name as a 'file' GET argument. If you are accessing the API from your local machine, this approach saves you from creating a redundant copy of the raster file on disk.
+
     HTTP query arguments:
-        name (string, optional): name for the new layer
-        url (string, optional): url to WMS dataset to be added as a new layer
+        layerName (string, optional): name for the new layer
+        url (string, optional): url of WMS service to be added as a new layer
         providerKey (string, optional): QGIS provider key (default: 'ogr')
+        file (string, optional): url to WMS dataset to be added as a new layer
 
     Returns:
         A JSON object containing information on the layer that was just added.
@@ -47,10 +51,14 @@ def addRasterLayer(iface, request):
         tmpfile, filename = mkstemp()
         os.write(tmpfile, request.headers.get_payload())
         os.close(tmpfile)
-        return NetworkAPIResult(iface.addRasterLayer(filename, request.args.get('name', '')))
+        return NetworkAPIResult(iface.addRasterLayer(filename, request.args.get('layerName', '')))
     else:
-        # 3 args for WMS layer: url, name, providerkey
-        return NetworkAPIResult(iface.addRasterLayer(request.args['url'], request.args.get('name', ''), request.args['providerKey']))
+        if request.args.get('file'):
+            # 2 args for local file: url (=filename), layerName
+            return NetworkAPIResult(iface.addRasterLayer(request.args['file'], request.args.get('layerName', '')))
+            # 3 args for WMS layer: url, name, providerkey
+        else:
+            return NetworkAPIResult(iface.addRasterLayer(request.args['url'], request.args.get('layerName', ''), request.args['providerKey']))
 
 @networkapi('/qgis/addVectorLayer')
 def addVectorLayer(iface, request):
@@ -193,6 +201,12 @@ def mapLayer_getFeatures(iface, request):
 
         geometry (optional): if set, returns all feature information including their geometry in GeoJSON format
 
+        orderBy (optional): expression that the results should be ordered by. If you want to order by a field, you'll have to give its name in quotes, e.g. ?orderBy="length"
+
+        ascending (optional, default 'true'): whether the results should be listen in ascending or descending order. Accepts several string representations of booleans (e.g. 1, 0, true, false, yes, no, ...)
+
+        nullsfirst (optional): how null values should be treated in the ordering. Accepts several string representations of booleans (e.g. 1, 0, true, false, yes, no, ...)
+
 
     The different ways to filter features follow the different constructor signatures defined by the QgsFeatureRequest class, in particular:
 
@@ -200,9 +214,9 @@ def mapLayer_getFeatures(iface, request):
 
         If the request is a HTTP GET request, the following query arguments are considered in order, and the first one provided is applied:
 
-            fid (optional): Construct a request with a QGIS feature ID filter
+            fid (integer): Construct a request with a QGIS feature ID filter
 
-            rect (optional): Construct a request with a rectangle filter. The rectangle should be specific as four numbers in the format "xmin,ymin,xmax,ymax".
+            rect (string): Construct a request with a rectangle filter. The rectangle should be specific as four numbers in the format "xmin,ymin,xmax,ymax".
 
             A GET request in which none of the arguments are specified returns ALL features of the given vector layer, which can produce very large results.
 
@@ -215,22 +229,24 @@ def mapLayer_getFeatures(iface, request):
 
     # construct and run QgsFeatureRequest depending on arguments
 
+    featurerequest = QgsFeatureRequest()
+    featurerequest.addOrderBy(request.args.get('orderBy', ''), strtobool(request.args.get('ascending', 'y')), bool(request.args.get('nullsfirst')))
+
     if request.command == 'POST':
         # POST request: complex QgsExpression passed as string
-        featurerequest = QgsFeatureRequest(QgsExpression(request.headers.get_payload()))
-        # TODO figure out how to work with QgsExpressionContext
-        result = layer.getFeatures(featurerequest, QgsExpressionContext())
-    elif request.args.get('fid'):
-        # query by feature id
-        result = layer.getFeatures(QgsFeatureRequest(int(request.args['fid'])))
-    elif request.args.get('rect'):
-        # query by rectangle
-        r = [float(x) for x in request.args['rect'].split(',')]
-        if len(r) != 4:
-            raise ValueError('"rect" argument to getFeatures requires exactly four floats in the format "xmin,ymin,xmax,ymax"')
-        result = layer.getFeatures(QgsFeatureRequest(QgsRectangle(r[0], r[1], r[2], r[3])))
+        featurerequest.setFilterExpression(QgsExpression(request.headers.get_payload()))
     else:
-        result = layer.getFeatures()
+        if request.args.get('fid'):
+            # query by feature id
+            featurerequest.setFilterFid(int(request.args['fid']))
+        elif request.args.get('rect'):
+            # query by rectangle
+            r = [float(x) for x in request.args['rect'].split(',')]
+            if len(r) != 4:
+                raise ValueError('"rect" argument to getFeatures requires exactly four floats in the format "xmin,ymin,xmax,ymax"')
+            featurerequest.setFilterRect(QgsRectangle(r[0], r[1], r[2], r[3]))
+
+    result = layer.getFeatures(featurerequest)
 
     if request.args.get('geometry') == None:
         # note that the lazy QgsFeatureIterator returned here is currently
