@@ -6,12 +6,14 @@ This plugin provides a web service API that exposes QGIS' data processing and ca
 Testing
 -------
 
-The plugin is currently under development so there is not a whole lot of (reliable) documentation. You can nevertheless try out and help test the current development version of the plugin:
+The plugin is currently under development so there is not a whole lot of documentation. You can nevertheless try out and help test the current development version of the plugin:
 
 1.  Install the plugin into your $QGIS\_HOME/plugins/ folder, either by `git clone`ing this repository or by downloading the latest snapshot as a [zip file](https://gitlab.com/qgisapi/networkapi/repository/archive.zip?ref=master).
 2.  In QGIS (2.\*), activate the plugin under Plugins &gt; Manage and Install Plugins &gt; 'Network API'
-3.  Once activated, the plugin will automatically start listening for (and accept all) connections on port 8090. (The plugin dialog is currently just a mockup, it is not configurable yet.)
-4.  Access the web service API, currently implemented requests/paths can be found [here](https://gitlab.com/qgisapi/networkapi/blob/master/functions.py). Some example commands that can be run from your console:
+3.  The API is disabled by default, but can by activated through the 'Network API' check box in the status bar at the bottom right of the main QGIS window. By default the plugin will listen for requests on port 8090 and only accept local connections. Port and security settings can be changed in the plugin config dialog which can be accessed from the Plugin menu as well as a 'Network API' button added to the QGIS toolbar.
+4.  Once the API is enabled you can submit requests from other clients, for example from `R` using the [rqgisapi package](https://gitlab.com/qgisapi/rqgisapi). To see what functionalities are exposed by the Network API as well as their documentation, point your browser to <http://localhost:8090/api> (adjust the port accordingly). Currently implemented requests/paths can also be found in the [source file](https://gitlab.com/qgisapi/networkapi/blob/master/functions.py).
+
+Some example functionalities as run from a console:
 
 ``` bash
 # make sure QGIS Desktop 2.* is running with the Network Plugin enabled, then:
@@ -49,7 +51,7 @@ curl --silent 'http://localhost:8090/qgis/addVectorLayer?url=https://d2ad6b4ur7y
     ##   ], 
     ##   "publicSource": "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson", 
     ##   "type": 0, 
-    ##   "id": "url_layer20170714133749574", 
+    ##   "id": "url_layer20170714152153776", 
     ##   "isEditable": false
     ## }
 
@@ -76,9 +78,9 @@ curl --silent -d @ne_50m_populated_places.geojson http://localhost:8090/qgis/add
     ##     179.21664709402887, 
     ##     78.21668438639699
     ##   ], 
-    ##   "publicSource": "/tmp/tmpapFUHl", 
+    ##   "publicSource": "/tmp/tmpAOnpgE", 
     ##   "type": 0, 
-    ##   "id": "geojson_layer20170714133805931", 
+    ##   "id": "geojson_layer20170714152159798", 
     ##   "isEditable": false
     ## }
 
@@ -88,7 +90,27 @@ curl --silent http://localhost:8090/qgis/mapLayers
 ```
 
     ## {
-    ##   "url_layer20170714133749574": {
+    ##   "geojson_layer20170714152159798": {
+    ##     "crs": {
+    ##       "postgisSrid": 4326, 
+    ##       "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
+    ##       "srsid": 3452, 
+    ##       "description": "WGS 84"
+    ##     }, 
+    ##     "valid": true, 
+    ##     "name": "geojson-layer OGRGeoJSON Point", 
+    ##     "extent": [
+    ##       -175.22056447761656, 
+    ##       -89.99999981438727, 
+    ##       179.21664709402887, 
+    ##       78.21668438639699
+    ##     ], 
+    ##     "publicSource": "/tmp/tmpAOnpgE", 
+    ##     "type": 0, 
+    ##     "id": "geojson_layer20170714152159798", 
+    ##     "isEditable": false
+    ##   }, 
+    ##   "url_layer20170714152153776": {
     ##     "crs": {
     ##       "postgisSrid": 4326, 
     ##       "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
@@ -105,27 +127,7 @@ curl --silent http://localhost:8090/qgis/mapLayers
     ##     ], 
     ##     "publicSource": "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson", 
     ##     "type": 0, 
-    ##     "id": "url_layer20170714133749574", 
-    ##     "isEditable": false
-    ##   }, 
-    ##   "geojson_layer20170714133805931": {
-    ##     "crs": {
-    ##       "postgisSrid": 4326, 
-    ##       "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
-    ##       "srsid": 3452, 
-    ##       "description": "WGS 84"
-    ##     }, 
-    ##     "valid": true, 
-    ##     "name": "geojson-layer OGRGeoJSON Point", 
-    ##     "extent": [
-    ##       -175.22056447761656, 
-    ##       -89.99999981438727, 
-    ##       179.21664709402887, 
-    ##       78.21668438639699
-    ##     ], 
-    ##     "publicSource": "/tmp/tmpapFUHl", 
-    ##     "type": 0, 
-    ##     "id": "geojson_layer20170714133805931", 
+    ##     "id": "url_layer20170714152153776", 
     ##     "isEditable": false
     ##   }
     ## }
@@ -135,9 +137,9 @@ curl --silent http://localhost:8090/qgis/mapCanvas/extent
 ```
 
     ## [
-    ##   -284.4320441859037, 
+    ##   -261.7367641877365, 
     ##   -94.20541691940687, 
-    ##   288.428126802316, 
+    ##   265.73284680414883, 
     ##   82.42210149141658
     ## ]
 
@@ -146,7 +148,7 @@ curl --silent http://localhost:8090/qgis/mapCanvas/extent
 curl --silent http://localhost:8090/qgis/mapCanvas/zoomToFullExtent
 ```
 
-    ## 204741060.76927844
+    ## 188518408.41324273
 
 ``` bash
 # read current canvas content
@@ -154,7 +156,7 @@ wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage
 file "saveAsImage"
 ```
 
-    ## 2017-07-14 13:38:07 URL:http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage [2313] -> "saveAsImage" [1]
+    ## 2017-07-14 15:22:01 URL:http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage [2502] -> "saveAsImage.1" [1]
     ## saveAsImage: PNG image data, 1093 x 337, 8-bit/color RGBA, non-interlaced
 
 ``` bash
@@ -162,7 +164,7 @@ wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage?format=jpeg
 file "saveAsImage?format=jpeg"
 ```
 
-    ## 2017-07-14 13:38:07 URL:http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage?format=jpeg [6699] -> "saveAsImage?format=jpeg" [1]
+    ## 2017-07-14 15:22:01 URL:http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage?format=jpeg [6975] -> "saveAsImage?format=jpeg.1" [1]
     ## saveAsImage?format=jpeg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 96x96, segment length 16, baseline, precision 8, 1093x337, frames 3
 
 ``` bash
@@ -170,20 +172,20 @@ file "saveAsImage?format=jpeg"
 curl --silent http://localhost:8090/qgis/mapCanvas/scale
 ```
 
-    ## 204741060.76927844
+    ## 188518408.41324273
 
 ``` bash
 # some more canvas manipulation
 curl --silent http://localhost:8090/qgis/mapCanvas/zoomIn
 ```
 
-    ## 102370530.38463922
+    ## 94259204.20662136
 
 ``` bash
 curl --silent http://localhost:8090/qgis/mapCanvas/zoomScale?scale=1234567.8
 ```
 
-    ## 1234567.8000000003
+    ## 1234567.7999999993
 
 Related projects
 ----------------

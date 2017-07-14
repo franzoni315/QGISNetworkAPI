@@ -10,12 +10,14 @@ This plugin provides a web service API that exposes QGIS' data processing and ca
 
 ## Testing
 
-The plugin is currently under development so there is not a whole lot of (reliable) documentation. You can nevertheless try out and help test the current development version of the plugin:
+The plugin is currently under development so there is not a whole lot of documentation. You can nevertheless try out and help test the current development version of the plugin:
 
 1. Install the plugin into your $QGIS_HOME/plugins/ folder, either by `git clone`ing this repository or by downloading the latest snapshot as a [zip file](https://gitlab.com/qgisapi/networkapi/repository/archive.zip?ref=master).
 2. In QGIS (2.*), activate the plugin under Plugins > Manage and Install Plugins > 'Network API'
-3. Once activated, the plugin will automatically start listening for (and accept all) connections on port 8090. (The plugin dialog is currently just a mockup, it is not configurable yet.)
-4. Access the web service API, currently implemented requests/paths can be found [here](https://gitlab.com/qgisapi/networkapi/blob/master/functions.py). Some example commands that can be run from your console:
+3. The API is disabled by default, but can by activated through the 'Network API' check box in the status bar at the bottom right of the main QGIS window. By default the plugin will listen for requests on port 8090 and only accept local connections. Port and security settings can be changed in the plugin config dialog which can be accessed from the Plugin menu as well as a 'Network API' button added to the QGIS toolbar.
+4. Once the API is enabled you can submit requests from other clients, for example from `R` using the [rqgisapi package](https://gitlab.com/qgisapi/rqgisapi). To see what functionalities are exposed by the Network API as well as their documentation, point your browser to <http://localhost:8090/api> (adjust the port accordingly). Currently implemented requests/paths can also be found in the [source file](https://gitlab.com/qgisapi/networkapi/blob/master/functions.py).
+
+Some example functionalities as run from a console:
 
 ```{bash}
 # make sure QGIS Desktop 2.* is running with the Network Plugin enabled, then:
