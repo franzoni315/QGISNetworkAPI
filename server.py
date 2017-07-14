@@ -77,7 +77,8 @@ class NetworkAPIServer(QTcpServer):
         if self.listen(QHostAddress.Any, port):
             self.emitStatusSignal(1)
         else:
-            self.showMessage('Error: failed to open socket on port ' + str(port), QgsMessageBar.CRITICAL)
+            self.showMessage('Failed to open socket on port ' + str(port), QgsMessageBar.CRITICAL)
+            self.emitStatusSignal(0, 'Error: failed to open socket on port ' + str(port))
 
     def acceptConnection(self):
         """Accept a new incoming connection request. If the server is still
@@ -160,8 +161,9 @@ class NetworkAPIServer(QTcpServer):
         self.connection.disconnectFromHost()
 
     def timeout(self):
-        self.showMessage('Connection timed out after ' + str(self.timer.interval()) + 'ms', QgsMessageBar.WARNING)
-        self.finishConnection()
+        if self.connection:
+            self.showMessage('Connection timed out after ' + str(self.timer.interval()) + 'ms', QgsMessageBar.WARNING)
+            self.finishConnection()
 
     def finishConnection(self):
         self.log('Disconnecting #' + str(self.nrequests) + ' (' + self.connection.peerAddress().toString() + ')')

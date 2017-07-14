@@ -21,6 +21,13 @@ curl --silent http://localhost:8090/qgis/mapLayers
     ## {}
 
 ``` bash
+# start a new blank project
+curl --silent http://localhost:8090/qgis/newProject
+```
+
+    ## null
+
+``` bash
 # add some vector data from the web
 curl --silent 'http://localhost:8090/qgis/addVectorLayer?url=https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson&name=url-layer'
 ```
@@ -33,7 +40,7 @@ curl --silent 'http://localhost:8090/qgis/addVectorLayer?url=https://d2ad6b4ur7y
     ##     "description": "WGS 84"
     ##   }, 
     ##   "valid": true, 
-    ##   "name": "url-layer", 
+    ##   "name": "url-layer OGRGeoJSON Point", 
     ##   "extent": [
     ##     -175.22056447761656, 
     ##     -89.99999981438727, 
@@ -42,14 +49,14 @@ curl --silent 'http://localhost:8090/qgis/addVectorLayer?url=https://d2ad6b4ur7y
     ##   ], 
     ##   "publicSource": "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson", 
     ##   "type": 0, 
-    ##   "id": "url_layer20170625163734828", 
+    ##   "id": "url_layer20170714133749574", 
     ##   "isEditable": false
     ## }
 
 ``` bash
 # add another layer as POST data
 if [ ! -f "ne_50m_populated_places.geojson" ]; then
-  wget https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson
+  wget --no-verbose https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson
 fi
 curl --silent -d @ne_50m_populated_places.geojson http://localhost:8090/qgis/addVectorLayer?name=geojson-layer
 ```
@@ -62,16 +69,16 @@ curl --silent -d @ne_50m_populated_places.geojson http://localhost:8090/qgis/add
     ##     "description": "WGS 84"
     ##   }, 
     ##   "valid": true, 
-    ##   "name": "geojson-layer", 
+    ##   "name": "geojson-layer OGRGeoJSON Point", 
     ##   "extent": [
     ##     -175.22056447761656, 
     ##     -89.99999981438727, 
     ##     179.21664709402887, 
     ##     78.21668438639699
     ##   ], 
-    ##   "publicSource": "/tmp/tmpnQDyXk", 
+    ##   "publicSource": "/tmp/tmpapFUHl", 
     ##   "type": 0, 
-    ##   "id": "geojson_layer20170625163738567", 
+    ##   "id": "geojson_layer20170714133805931", 
     ##   "isEditable": false
     ## }
 
@@ -81,7 +88,7 @@ curl --silent http://localhost:8090/qgis/mapLayers
 ```
 
     ## {
-    ##   "geojson_layer20170625163738567": {
+    ##   "url_layer20170714133749574": {
     ##     "crs": {
     ##       "postgisSrid": 4326, 
     ##       "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
@@ -89,27 +96,7 @@ curl --silent http://localhost:8090/qgis/mapLayers
     ##       "description": "WGS 84"
     ##     }, 
     ##     "valid": true, 
-    ##     "name": "geojson-layer", 
-    ##     "extent": [
-    ##       -175.22056447761656, 
-    ##       -89.99999981438727, 
-    ##       179.21664709402887, 
-    ##       78.21668438639699
-    ##     ], 
-    ##     "publicSource": "/tmp/tmpnQDyXk", 
-    ##     "type": 0, 
-    ##     "id": "geojson_layer20170625163738567", 
-    ##     "isEditable": false
-    ##   }, 
-    ##   "url_layer20170625163734828": {
-    ##     "crs": {
-    ##       "postgisSrid": 4326, 
-    ##       "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
-    ##       "srsid": 3452, 
-    ##       "description": "WGS 84"
-    ##     }, 
-    ##     "valid": true, 
-    ##     "name": "url-layer", 
+    ##     "name": "url-layer OGRGeoJSON Point", 
     ##     "extent": [
     ##       -175.22056447761656, 
     ##       -89.99999981438727, 
@@ -118,7 +105,27 @@ curl --silent http://localhost:8090/qgis/mapLayers
     ##     ], 
     ##     "publicSource": "https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson", 
     ##     "type": 0, 
-    ##     "id": "url_layer20170625163734828", 
+    ##     "id": "url_layer20170714133749574", 
+    ##     "isEditable": false
+    ##   }, 
+    ##   "geojson_layer20170714133805931": {
+    ##     "crs": {
+    ##       "postgisSrid": 4326, 
+    ##       "proj4": "+proj=longlat +datum=WGS84 +no_defs", 
+    ##       "srsid": 3452, 
+    ##       "description": "WGS 84"
+    ##     }, 
+    ##     "valid": true, 
+    ##     "name": "geojson-layer OGRGeoJSON Point", 
+    ##     "extent": [
+    ##       -175.22056447761656, 
+    ##       -89.99999981438727, 
+    ##       179.21664709402887, 
+    ##       78.21668438639699
+    ##     ], 
+    ##     "publicSource": "/tmp/tmpapFUHl", 
+    ##     "type": 0, 
+    ##     "id": "geojson_layer20170714133805931", 
     ##     "isEditable": false
     ##   }
     ## }
@@ -128,24 +135,18 @@ curl --silent http://localhost:8090/qgis/mapCanvas/extent
 ```
 
     ## [
-    ##   -287.00476950471307, 
+    ##   -284.4320441859037, 
     ##   -94.20541691940687, 
-    ##   291.0008521211254, 
+    ##   288.428126802316, 
     ##   82.42210149141658
     ## ]
 
 ``` bash
 # adjust view
 curl --silent http://localhost:8090/qgis/mapCanvas/zoomToFullExtent
-curl --silent http://localhost:8090/qgis/mapCanvas/extent
 ```
 
-    ## null[
-    ##   -287.00476950471307, 
-    ##   -94.20541691940687, 
-    ##   291.0008521211254, 
-    ##   82.42210149141658
-    ## ]
+    ## 204741060.76927844
 
 ``` bash
 # read current canvas content
@@ -153,36 +154,36 @@ wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage
 file "saveAsImage"
 ```
 
-    ## 2017-06-25 16:37:40 URL:http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage [67796] -> "saveAsImage" [1]
-    ## saveAsImage: PNG image data, 1093 x 334, 8-bit/color RGBA, non-interlaced
+    ## 2017-07-14 13:38:07 URL:http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage [2313] -> "saveAsImage" [1]
+    ## saveAsImage: PNG image data, 1093 x 337, 8-bit/color RGBA, non-interlaced
 
 ``` bash
-wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage?format=jpg
-file "saveAsImage?format=jpg"
+wget --no-verbose http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage?format=jpeg
+file "saveAsImage?format=jpeg"
 ```
 
-    ## 2017-06-25 16:37:40 URL:http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage?format=jpeg [49470] -> "saveAsImage?format=jpeg" [1]
-    ## saveAsImage?format=jpeg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 96x96, segment length 16, baseline, precision 8, 1093x334, frames 3
+    ## 2017-07-14 13:38:07 URL:http://127.0.0.1:8090/qgis/mapCanvas/saveAsImage?format=jpeg [6699] -> "saveAsImage?format=jpeg" [1]
+    ## saveAsImage?format=jpeg: JPEG image data, JFIF standard 1.01, resolution (DPI), density 96x96, segment length 16, baseline, precision 8, 1093x337, frames 3
 
 ``` bash
 # retrieve current scale
 curl --silent http://localhost:8090/qgis/mapCanvas/scale
 ```
 
-    ## 206580052.33307433
+    ## 204741060.76927844
 
 ``` bash
 # some more canvas manipulation
 curl --silent http://localhost:8090/qgis/mapCanvas/zoomIn
 ```
 
-    ## 103290026.16653717
+    ## 102370530.38463922
 
 ``` bash
 curl --silent http://localhost:8090/qgis/mapCanvas/zoomScale?scale=1234567.8
 ```
 
-    ## 1234567.800000001
+    ## 1234567.8000000003
 
 Related projects
 ----------------

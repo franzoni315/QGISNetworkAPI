@@ -23,6 +23,11 @@ curl --silent http://localhost:8090/qgis/mapLayers
 ```
 
 ```{bash}
+# start a new blank project
+curl --silent http://localhost:8090/qgis/newProject
+```
+
+```{bash}
 # add some vector data from the web
 curl --silent 'http://localhost:8090/qgis/addVectorLayer?url=https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson&name=url-layer'
 ```
@@ -30,7 +35,7 @@ curl --silent 'http://localhost:8090/qgis/addVectorLayer?url=https://d2ad6b4ur7y
 ```{bash}
 # add another layer as POST data
 if [ ! -f "ne_50m_populated_places.geojson" ]; then
-  wget https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson
+  wget --no-verbose https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson
 fi
 curl --silent -d @ne_50m_populated_places.geojson http://localhost:8090/qgis/addVectorLayer?name=geojson-layer
 ```
@@ -47,7 +52,6 @@ curl --silent http://localhost:8090/qgis/mapCanvas/extent
 ```{bash}
 # adjust view
 curl --silent http://localhost:8090/qgis/mapCanvas/zoomToFullExtent
-curl --silent http://localhost:8090/qgis/mapCanvas/extent
 ```
 
 ```{bash}

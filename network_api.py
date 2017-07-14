@@ -175,6 +175,7 @@ class NetworkAPI:
         self.statusbutton.clicked.connect(self.toggleServer)
         self.dlg.toggle.clicked.connect(self.toggleServer)
         self.dlg.server_port_changed.connect(self.serverConfigChanged)
+        self.dlg.status.setText('Plugin loaded')
 
         self.iface.mainWindow().statusBar().addPermanentWidget(self.statusbutton)
 
