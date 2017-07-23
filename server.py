@@ -9,6 +9,8 @@ from qgis.gui import QgsMessageBar
 from . import functions
 from . import doc
 
+from . import api_processing
+
 class NetworkAPIServer(QTcpServer):
 
     # signal emitted whenever the server changes state
