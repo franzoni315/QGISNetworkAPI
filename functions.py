@@ -337,34 +337,6 @@ def mapLayer_xml(iface, request):
         layer.writeLayerXML(root, doc, '')
         return NetworkAPIResult(doc.toString(), 'text/xml')
 
-# same overloading for /style path
-@networkapi('/qgis/mapLayer/style')
-def mapLayer_style(iface, request):
-    """
-    Retrieve or set the style for the layer with the given id.
-
-    HTTP query arguments:
-        id (string): ID of layer whose stylesheet to retrieve or set
-
-    Returns:
-        The XML style definition for the layer with the given ID.
-    """
-    layer = qgis_layer_by_id(request.args['id'])
-    if request.command == 'POST':
-        doc = QDomDocument('xml')
-        # TODO needs testing (second argument to readStyle?)
-        if doc.setContent(request.headers.get_payload()) and layer.readStyle(doc):
-            return NetworkAPIResult()
-        else:
-            return NetworkAPIResult(status=NetworkAPIResult.INVALID_ARGUMENTS)
-    else:
-        doc = QDomDocument('xml')
-        root = doc.createElement('maplayer')
-        doc.appendChild(root)
-        # TODO check return value
-        layer.writeStyle(root, doc, '')
-        return NetworkAPIResult(doc.toString(), 'text/xml')
-
 
 # http://qgis.org/api/2.18/classQgsMapCanvas.html
 import os
@@ -474,7 +446,11 @@ def mapCanvas_layer(iface, request):
     HTTP query arguments:
         index (int): position index in the layer stack, between 0 and layerCount-1
     """
-    return NetworkAPIResult(iface.mapCanvas().layer(int(request.args['index'])))
+    layer = iface.mapCanvas().layer(int(request.args['index']))
+    if layer:
+      return NetworkAPIResult(layer)
+    else:
+      raise KeyError('Invalid layer index: ' + str(int(request.args['index'])))
 
 @networkapi('/qgis/mapCanvas/layerCount')
 def mapCanvas_layerCount(iface, _):
