@@ -2,14 +2,14 @@ from json import dump
 from PyQt4.QtCore import pyqtSignal, QTimer
 from PyQt4.QtNetwork import QHostAddress, QTcpServer
 from network_api_dialog import NetworkAPIDialog
-from .registry import QGISJSONEncoder, Registry
 from qgis.core import QgsMessageLog
 from qgis.gui import QgsMessageBar
 
-from . import functions
-from . import doc
+from .registry import QGISJSONEncoder, Registry
 
-from . import api_processing
+from . import functions_processing
+from . import doc
+from . import functions
 
 class NetworkAPIServer(QTcpServer):
 

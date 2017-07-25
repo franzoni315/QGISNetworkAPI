@@ -27,8 +27,10 @@ class GetStdOut(list):
 # loading the plugin after manually calling 'import processing' in the QGIS
 # python console *does* work
 
-#print sys.path
 from processing.core.Processing import Processing
+# TODO check if initialisation succeeds, if not maybe plugin is not enabled, in
+# which case these API paths should NOT be exposed by the plugin (but what if
+# processing is enabled by the user later...?)
 Processing.initialize()
 import processing
 
@@ -37,10 +39,10 @@ def parse_processing_algorithms(arg=None):
     """Parse available processing algorithms from alglist()'s console output"""
     with GetStdOut() as algs:
         processing.alglist(arg)
-        # FIXME algorithms might have a -> sequence in their description
-        # (grass:v.out.pov and grass7:v.out.pov in particular)
-        algs = [re.split('-+>', alg, maxsplit=1) for alg in algs if alg]
-        return {a[1]: a[0] for a in algs}
+    # FIXME algorithms might have a -> sequence in their description
+    # (grass:v.out.pov and grass7:v.out.pov in particular)
+    algs = [re.split('-+>', alg, maxsplit=1) for alg in algs if alg]
+    return { a[1]: a[0] for a in algs }
 
 @networkapi('/processing/alglist')
 def processing_alglist(_, request):
@@ -52,5 +54,4 @@ def processing_alglist(_, request):
 def processing_alghelp(_, request):
     with GetStdOut() as alghelp:
         processing.alghelp(request.args['alg'])
-        return NetworkAPIResult(alghelp)
-
+    return NetworkAPIResult([ line.strip() for line in alghelp if line])
