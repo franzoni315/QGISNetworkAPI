@@ -32,6 +32,9 @@ from network_api_dialog import NetworkAPIDialog
 from .server import NetworkAPIServer
 import os.path
 
+# import for saving project-specific settings
+from qgis.core import QgsProject
+
 class NetworkAPI:
     """QGIS Plugin Implementation."""
 
@@ -70,6 +73,13 @@ class NetworkAPI:
         self.toolbar.setObjectName(u'NetworkAPI')
 
         self.serversingleton = NetworkAPIServer(self.iface)
+
+        # TODO connect newProjectCreated signal too?
+        self.iface.projectRead.connect(self.onProjectLoad)
+
+        # check project-specific API on/off setting, start server if desired
+        if self.projectSetting():
+            self.toggleServer(True)
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -182,7 +192,20 @@ class NetworkAPI:
         # connect server signals to update status button etc
         self.serversingleton.status_changed.connect(self.serverStatusChanged)
 
+    def projectSetting(self, newValue = None):
+        """Check or set if the network API should be enabled for the currently open project"""
+        if newValue == None:
+            # returns a [value, isset] tuple, only return first
+            return QgsProject.instance().readBoolEntry('networkapi', 'active')[0]
+        QgsProject.instance().writeEntryBool('networkapi', 'active', newValue)
+
+    def onProjectLoad(self):
+        """Triggered by a signal when a new project is loaded"""
+        self.toggleServer(self.projectSetting())
+
     def toggleServer(self, toggled):
+        # save setting to project
+        self.projectSetting(toggled)
         if toggled:
             self.serversingleton.startServer(NetworkAPIDialog.settings.port())
         else:

@@ -33,18 +33,11 @@ class NetworkAPIServer(QTcpServer):
         QTcpServer.__init__(self)
         self.iface = iface
 
-        # TODO trigger different method which checks project-specific settings
-#        self.iface.newProjectCreated.connect(self.stopServer)
-        self.iface.projectRead.connect(self.stopServer)
-
         # timer for interrupting open connections on inactivity
         self.timer = QTimer()
         self.timer.setInterval(3000) # 3 seconds, worth making configurable?
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.timeout)
-
-        # TODO: read project-specific on/off setting, start server if desired
-#        self.startServer(NetworkAPIDialog.settings.port())
 
     def log(self, message, level=QgsMessageLog.INFO):
         "Print a message to QGIS' Log Messages Panel"
@@ -70,6 +63,9 @@ class NetworkAPIServer(QTcpServer):
             self.emitStatusSignal(0)
 
     def startServer(self, port):
+        if self.isListening() and port == self.serverPort():
+            # already listening on that port, carry on
+            return
         self.stopServer()
         # process one connection/request at a time
         self.connection = None
