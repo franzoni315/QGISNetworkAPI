@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+
+# network api functions to be added to the call path registry
+#
+# the functions should take two arguments: the first is the 'iface' variable
+# which gives access to QGIS components, the second a NetworkAPIRequest object.
+#
+# the functions should return an instance of NetworkAPIResult
+
 from .functions import qgis_layer_by_id
 from .registry import networkapi, NetworkAPIResult, toGeoJSON
 
@@ -39,3 +48,53 @@ def mapLayer_style(iface, request):
     layer.writeStyle(root, doc, '')
     return NetworkAPIResult(doc.toString(), 'text/xml')
 
+@networkapi('/qgis/mapLayer/styleURI')
+def mapLayer_styleURI(iface, request):
+    """Retrieve the style URI for a layer."""
+    location = qgis_layer_by_id(request.args['id']).styleURI()
+    # TODO check if file exists, if so transfer content
+    return NetworkAPIResult(location)
+
+@networkapi('/qgis/mapLayer/loadDefaultStyle')
+def mapLayer_loadDefaultStyle(iface, request):
+    """Retrieve the default style for this layer if one exists.
+
+    Retrieve the default style for this layer if one exists, either as a .qml file on disk or as a record in the users style table in their personal qgis.db.
+
+    HTTP query arguments:
+        id (string): ID of the layer whose default style to load
+
+    Returns:
+        A string with any status messages
+    """
+    return NetworkAPIResult(qgis_layer_by_id(request.args['id']).loadDefaultStyle(None))
+
+@networkapi('/qgis/mapLayer/loadNamedStyle')
+def mapLayer_loadNamedStyle(iface, request):
+    """Retrieve a named style for this layer.
+
+    Retrieve a named style for this layer if one exists (either as a .qml file on disk or as a record in the users style table in their personal qgis.db)
+
+    HTTP query arguments:
+        id (string): ID of the layer whose style to load
+        uri (string): the file name or other URI for the style file. First an attempt will be made to see if this is a file and load that, if that fails the qgis.db styles table will be consulted to see if there is a style who's key matches the URI.
+
+    Returns:
+        A string with any status messages
+    """
+    layer = qgis_layer_by_id(request.args['id'])
+    return NetworkAPIResult(layer.loadNamedStyle(request.args['uri'], None))
+
+@networkapi('/qgis/mapLayer/saveNamedStyle')
+def mapLayer_saveNamedStyle(iface, request):
+    """Save the properties of this layer as a named style (either as a .qml file on disk or as a record in the users style table in their personal qgis.db)
+
+    HTTP query arguments:
+        id (string): ID of the layer whose style to save
+        uri (string): the file name or other URI for the style file. First an attempt will be made to see if this is a file and save to that, if that fails the qgis.db styles table will be used to create a style entry who's key matches the URI.
+
+    Returns:
+        A string with any status messages
+    """
+    layer = qgis_layer_by_id(request.args['id'])
+    return NetworkAPIResult(layer.saveNamedStyle(request.args['uri'], None))

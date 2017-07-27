@@ -23,10 +23,6 @@ class GetStdOut(list):
         del self._stringio
         sys.stdout = self._stdout
 
-# FIXME importing processing from within the plugin does not currently work
-# loading the plugin after manually calling 'import processing' in the QGIS
-# python console *does* work
-
 from processing.core.Processing import Processing
 # TODO check if initialisation succeeds, if not maybe plugin is not enabled, in
 # which case these API paths should NOT be exposed by the plugin (but what if
@@ -44,14 +40,29 @@ def parse_processing_algorithms(arg=None):
     algs = [re.split('-+>', alg, maxsplit=1) for alg in algs if alg]
     return { a[1]: a[0] for a in algs }
 
-@networkapi('/processing/alglist')
+@networkapi('/qgis/processing/alglist')
 def processing_alglist(_, request):
-    """Retrieve names and descriptions of available Processing algorithms"""
+    """Retrieve names and descriptions of available Processing algorithms.
+
+    HTTP query arguments:
+        search (optional): if provided, results are limited to algorithms whose name or description contains the given string
+
+    Returns:
+        A JSON object with a name: description pair for every algorithm
+    """
     # the optional argument filters algorithms based on their description
     return NetworkAPIResult(parse_processing_algorithms(request.args.get('search')))
 
-@networkapi('/processing/alghelp')
+@networkapi('/qgis/processing/alghelp')
 def processing_alghelp(_, request):
+    """Retrieve arguments and usage information of a Processing algorithm.
+
+    HTTP query arguments:
+        alg (string): the name Of the algorithm for which to show the help
+
+    Returns:
+        An array of strings describing the algorithm as well as its arguments.
+    """
     with GetStdOut() as alghelp:
         processing.alghelp(request.args['alg'])
     return NetworkAPIResult([ line.strip() for line in alghelp if line])

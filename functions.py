@@ -308,6 +308,36 @@ def mapLayer_selectedFeatures_geometry(iface, request):
     layer = qgis_layer_by_id_or_current(iface, request)
     return NetworkAPIResult(toGeoJSON(layer, layer.selectedFeatures()), 'application/geo+json')
 
+@networkapi('/qgis/mapLayer/setAttribution')
+def mapLayer_setAttribution(iface, request):
+    """Set the attribution of the layer used by QGIS Server in GetCapabilities request.
+
+    Attribution indicates the provider of a Layer or collection of Layers.
+
+    HTTP query arguments:
+        id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
+        attrib (string): the desired attribution for the layer
+
+    Returns:
+        NULL
+    """
+    layer = qgis_layer_by_id_or_current(iface, request)
+    return NetworkAPIResult(layer.setAttribution(request.args['attrib']))
+
+@networkapi('/qgis/mapLayer/subLayers')
+def mapLayer_subLayers(iface, request):
+    """Returns the sublayers of this layer (Useful for providers that manage their own layers, such as WMS)
+
+    HTTP query arguments:
+        id (optional): ID of layer from which selected features should be retrieved. If not specified, defaults to the currently active layer.
+
+    Returns:
+        A list of sublayer ids
+    """
+    layer = qgis_layer_by_id_or_current(iface, request)
+    return NetworkAPIResult(layer.subLayers())
+
+
 from PyQt4.QtXml import QDomDocument
 
 # overload /xml path: POST loads layer from request, GET returns current xml
