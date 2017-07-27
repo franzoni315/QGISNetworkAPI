@@ -177,10 +177,14 @@ class NetworkAPIServer(QTcpServer):
     def timeout(self):
         if self.connection:
             self.showMessage('Connection timed out after ' + str(self.timer.interval()) + 'ms', QgsMessageBar.WARNING)
-            self.finishConnection()
+            # can't make use of the BaseHTTPRequestHandler's send_error code if
+            # we haven't even parsed/received a HTTP request line yet...
+#            self.sendError(408)
+            self.connection.disconnectFromHost()
 
     def finishConnection(self):
-        """Gracefully disconnect a peer and clean up the network connection."""
+        """Gracefully disconnect a peer and clean up the network connection.
+        Never called directly, always triggered by the connection's 'disconnected' signal."""
         self.log('Disconnecting #' + str(self.nrequests) + ' (' + self.connection.peerAddress().toString() + ')')
         self.connection.readyRead.disconnect(self.readFromConnection)
         self.connection.disconnected.disconnect(self.finishConnection)
@@ -195,10 +199,13 @@ class NetworkAPIServer(QTcpServer):
             self.emitStatusSignal(1)
 
     def executeRequest(self, qgis_call):
-        """Execute a command retrieved from the registry"""
+        """Execute a command previously retrieved from the registry"""
         try:
+            # all implemented functions take two arguments
             result = qgis_call(self.iface, self.request)
             self.request.send_response(result.status)
+
+            # result content-type was set explicitly
             if result.content_type:
                 self.request.send_header('Content-Type', result.content_type)
                 self.request.end_headers()
