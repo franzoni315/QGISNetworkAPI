@@ -116,8 +116,8 @@ def mapLayers(iface, request):
     return NetworkAPIResult(QgsMapLayerRegistry.instance().mapLayers())
 
 # helper function
-def qgis_layer_by_id(id, fallback = None):
-    layer = QgsMapLayerRegistry.instance().mapLayer(str(id)) or fallback
+def qgis_layer_by_id(id):
+    layer = QgsMapLayerRegistry.instance().mapLayer(str(id))
     if layer == None:
         raise KeyError('No layer with id: ' + str(id))
     return layer

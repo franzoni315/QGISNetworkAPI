@@ -10,8 +10,6 @@
 from .functions import qgis_layer_by_id
 from .registry import networkapi, NetworkAPIResult, toGeoJSON
 
-from json import loads
-
 from PyQt4.QtXml import QDomDocument
 
 # GET/POST overloading for reading/writing style XML
