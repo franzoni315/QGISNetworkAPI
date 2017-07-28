@@ -1,4 +1,4 @@
-from json import dump
+from json import dump, loads
 from PyQt4.QtCore import pyqtSignal, QTimer
 from PyQt4.QtNetwork import QHostAddress, QTcpServer
 from network_api_dialog import NetworkAPIDialog
@@ -112,10 +112,15 @@ class NetworkAPIServer(QTcpServer):
         if self.request == None:
             self.emitStatusSignal(2, 'Connection opened...')
             if not self.connection.canReadLine():
-                self.log('Warning: readyRead() was signalled before full HTTP request line was available for reading (' + str(self.connection.bytesAvailable()) + ' bytes in buffer)', QgsMessageLog.WARNING)
+                self.log('readyRead() was signalled before full HTTP request line was available for reading (' + str(self.connection.bytesAvailable()) + ' bytes in buffer)', QgsMessageLog.INFO)
                 return
             # new request, parse header
-            self.request = NetworkAPIRequest(self.connection)
+            try:
+                self.request = NetworkAPIRequest(self.connection)
+            except ValueError:
+                # malformed request line
+                self.sendErrorAndDisconnect(400)
+                return
         else:
             # additional data for previous request, append to payload. the loop
             # is necessary to work around a race condition where data is added
@@ -132,14 +137,14 @@ class NetworkAPIServer(QTcpServer):
         if NetworkAPIDialog.settings.security():
             if request.headers['Authorization'] != NetworkAPIDialog.settings.auth():
                 # TODO log/message?
-                self.sendError(401)
+                self.sendErrorAndDisconnect(401)
                 return
 
         # find+call function corresponding to given path
         qgis_call = Registry.get(self.request.path)
 
         if qgis_call == None:
-            self.sendError(404)
+            self.sendErrorAndDisconnect(404)
             return
 
         # if some path that only processes GET requests was submitted with a
@@ -154,6 +159,17 @@ class NetworkAPIServer(QTcpServer):
 
         # looks like we have all the data, execute call
         self.timer.stop()
+
+        # the only payload processing done in the server directly: if the
+        # POST content-type is set to JSON, parse
+        if self.request.headers.get('Content-Type') == 'application/json':
+            try:
+                self.request.headers.set_payload(loads(self.request.headers.get_payload()))
+            except ValueError:
+                # problem parsing JSON body
+                self.sendErrorAndDisconnect(400)
+                return
+
         self.emitStatusSignal(3, 'Executing request...')
         # response is written and connection closed in executeRequest()
         self.executeRequest(qgis_call)
@@ -166,7 +182,8 @@ class NetworkAPIServer(QTcpServer):
         # actual connection cleanup
         self.connection.disconnectFromHost()
 
-    def sendError(self, status):
+    def sendErrorAndDisconnect(self, status):
+        self.timer.stop()
         self.request.send_http_error(status)
         self.sendResponse()
 
@@ -175,7 +192,7 @@ class NetworkAPIServer(QTcpServer):
             self.showMessage('Connection timed out after ' + str(self.timer.interval()) + 'ms', QgsMessageBar.WARNING)
             # can't make use of the BaseHTTPRequestHandler's send_error code if
             # we haven't even parsed/received a HTTP request line yet...
-#            self.sendError(408)
+#            self.sendErrorAndDisconnect(408)
             self.connection.disconnectFromHost()
 
     def finishConnection(self):
@@ -257,8 +274,7 @@ class NetworkAPIRequest(BaseHTTPRequestHandler):
             # parse key=value pairs, keep keys with blank values
             self.args = dict(parse_qsl(parsed_path[4], True))
         else:
-            self.showMessage('Invalid request, should probably force disconnect?', QgsMessageBar.WARNING)
-            # TODO throw exception
+            raise ValueError('Malformed HTTP request')
 
     def send_http_error(self, code, message=None):
         if message == None:
