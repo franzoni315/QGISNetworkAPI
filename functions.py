@@ -67,13 +67,13 @@ def addVectorLayer(iface, request):
 
     The vector data can be provided in two ways:
 
-    1. from an external file, by passing a QGIS provider string as a 'url' GET argument
+    1. from an external file, by passing a QGIS provider string as a 'vectorLayerPath' query argument
 
     2. as GeoJSON data in the request body of a POST request (support for other formats to be added later)
 
     HTTP query arguments:
-        name (string, optional): name for the new layer
-        url (string, optional): QGIS provider string to a local or external vector data source
+        baseName (string, optional): name for the new layer
+        vectorLayerPath (string, optional): QGIS provider string to a local or external vector data source
         providerKey (string, optional): QGIS provider key (default: 'ogr')
 
     Returns:
@@ -86,10 +86,11 @@ def addVectorLayer(iface, request):
         os.close(tmpfile)
         # TODO this file should probably not be temporary but actually stay on disk?
     else:
-        # try 'url' GET arg (could actually be file:// or a web http:// url)
+        # try 'vectorLayerPath' GET arg (could actually be file:// or a web http:// url)
         # http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/loadlayer.html#vector-layers
-        filename = request.args['url']
-    return NetworkAPIResult(iface.addVectorLayer(filename, request.args.get('name', ''), request.args.get('providerKey', 'ogr')))
+        filename = request.args['vectorLayerPath']
+    return NetworkAPIResult(iface.addVectorLayer(filename, request.args.get('baseName', ''), request.args.get('providerKey', 'ogr')))
+
 
 @networkapi('/qgis/newProject')
 def mapLayers_count(iface, _):
