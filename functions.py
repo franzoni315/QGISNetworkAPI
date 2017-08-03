@@ -91,7 +91,6 @@ def addVectorLayer(iface, request):
         filename = request.args['vectorLayerPath']
     return NetworkAPIResult(iface.addVectorLayer(filename, request.args.get('baseName', ''), request.args.get('providerKey', 'ogr')))
 
-
 @networkapi('/qgis/newProject')
 def mapLayers_count(iface, _):
     """Start a blank project. Warning: does *not* prompt to save changes to the currently open project!"""
@@ -458,6 +457,30 @@ def mapCanvas_setCenter(iface, request):
     center = QgsPoint(float(request.args['x']), float(request.args['y']))
     iface.mapCanvas().setCenter(center)
     return NetworkAPIResult(iface.mapCanvas().center())
+
+from qgis.core import QgsCoordinateReferenceSystem
+
+@networkapi('/qgis/mapCanvas/setDestinationCrs')
+def mapCanvas_setDestinationCrs(iface, request):
+    """Set the map canvas' destination coordinate reference system.
+
+    HTTP query arguments:
+        crs: specification for a coordinate reference system understandable by QGIS, such as a 'EPSG:...' or WKT definition string.
+
+    Returns:
+        A representation of the map canvas' coordinate reference system after
+        applying the given definition string.
+    """
+    spec = str(request.args['crs'])
+    crs = QgsCoordinateReferenceSystem(spec)
+    if not crs.isValid():
+        # TODO could try to crs.createFromProj4(spec) but while the resulting
+        # projections are valid, their application is often not handled
+        # correctly by QGIS
+        raise ValueError('Unknown CRS specification: ' + spec)
+    # TODO is there a difference between this and the mapSettings.set() method?
+    iface.mapCanvas().setDestinationCrs(crs)
+    return NetworkAPIResult(iface.mapCanvas().mapSettings().destinationCrs())
 
 @networkapi('/qgis/mapCanvas/extent')
 def mapCanvas_extent(iface, _):
