@@ -112,11 +112,15 @@ def processing_runalg(_, request):
     """
     with GetStdOut() as algoutput:
         # JSON POST body is automatically parsed by server
-        # check if arguments are given as an array, or with names in a JSON object
+        # check if arguments are given as a simple array, or with their
+        # argument names in a JSON object (which arrives here as a dict)
+
+        # for how to pass the different argument types, see:
+        # https://docs.qgis.org/2.2/en/docs/user_manual/processing/console.html#calling-algorithms-from-the-python-console
         if isinstance(request.headers.get_payload(), dict):
             args = {k: possible_qgis_layer(v) for k, v in request.headers.get_payload().iteritems()}
-            # named argument list gets unpacked with **
-            result = processing.runalg(request.args['alg'], **args)
+            # pass named argument dict to make use of default values
+            result = processing.runalg(request.args['alg'], args)
 
         else:
             args = [possible_qgis_layer(arg) for arg in request.headers.get_payload()]
