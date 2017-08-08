@@ -35,13 +35,13 @@ def addRasterLayer(iface, request):
 
     2. as raster data in the request body of a POST request
 
-    3. from a file readable by QGIS, by giving the file name as a 'file' GET argument. If you are accessing the API from your local machine, this approach saves you from creating a redundant copy of the raster file on disk.
+    3. from a file readable by QGIS, by giving the file name as a 'rasterLayerPath' GET argument. If you are accessing the API from your local machine, this approach saves you from creating a redundant copy of the raster file on disk.
 
     HTTP query arguments:
         layerName (string, optional): name for the new layer
+        rasterLayerPath (string, optional): file name of a locally readable raster data set to be added as a new layer
         url (string, optional): url of WMS service to be added as a new layer
-        providerKey (string, optional): QGIS provider key (default: 'ogr')
-        file (string, optional): url to WMS dataset to be added as a new layer
+        providerKey (string, only required together with url argument): QGIS provider key (default: 'ogr')
 
     Returns:
         A JSON object containing information on the layer that was just added.
@@ -53,9 +53,9 @@ def addRasterLayer(iface, request):
         os.close(tmpfile)
         return NetworkAPIResult(iface.addRasterLayer(filename, request.args.get('layerName', '')))
     else:
-        if request.args.get('file'):
-            # 2 args for local file: url (=filename), layerName
-            return NetworkAPIResult(iface.addRasterLayer(request.args['file'], request.args.get('layerName', '')))
+        if request.args.get('rasterLayerPath'):
+            # 2 args for local file: rasterLayerPath, layerName
+            return NetworkAPIResult(iface.addRasterLayer(request.args['rasterLayerPath'], request.args.get('layerName', '')))
             # 3 args for WMS layer: url, name, providerkey
         else:
             return NetworkAPIResult(iface.addRasterLayer(request.args['url'], request.args.get('layerName', ''), request.args['providerKey']))
@@ -216,7 +216,7 @@ def mapLayer_getFeatures(iface, request):
 
             fid (integer): Construct a request with a QGIS feature ID filter
 
-            rect (string): Construct a request with a rectangle filter. The rectangle should be specific as four numbers in the format "xmin,ymin,xmax,ymax".
+            rect (string): Construct a request with a rectangle filter. The rectangle should be specified as four numbers in the format "xmin,ymin,xmax,ymax".
 
             A GET request in which none of the arguments are specified returns ALL features of the given vector layer, which can produce very large results.
 
@@ -426,6 +426,10 @@ def mapCanvas_saveAsImage(iface, request):
     if pixmap.isNull():
         pixmap = None
 
+    # FIXME if the canvas has been modified very recently, it might not be done
+    # re-rendering yet...
+    # from QGIS 3 we could simply use: iface.mapCanvas().waitWhileRendering()
+
     # doesn't provide status information about success of writing, have to
     # check file size below
     iface.mapCanvas().saveAsImage(tmpfilename, pixmap, ext)
@@ -457,6 +461,16 @@ def mapCanvas_setCenter(iface, request):
     center = QgsPoint(float(request.args['x']), float(request.args['y']))
     iface.mapCanvas().setCenter(center)
     return NetworkAPIResult(iface.mapCanvas().center())
+
+@networkapi('/qgis/mapCanvas/setCrsTransformEnabled')
+def mapCanvas_setCrsTransformEnabled(iface, request):
+    """Set whether on-the-fly reprojection is enabled or disabled.
+
+    HTTP query arguments:
+        enabled: whether on-the-fly reprojection should be turned on or off. Accepts several string representations of booleans (e.g. 1, 0, true, false, yes, no, ...).
+    """
+    iface.mapCanvas().setCrsTransformEnabled(strtobool(request.args['enabled']))
+    return NetworkAPIResult()
 
 from qgis.core import QgsCoordinateReferenceSystem
 
@@ -582,6 +596,25 @@ def mapCanvas_zoomScale(iface, request):
         The new scale of the canvas (a single float)
     """
     iface.mapCanvas().zoomScale(float(request.args['scale']))
+    return NetworkAPIResult(iface.mapCanvas().scale())
+
+@networkapi('/qgis/mapCanvas/setExtent')
+def mapCanvas_setExtent(iface, request):
+    """
+    Zoom to feature extent and redraw map canvas.
+
+    Adds a small margin around the extent and does a pan if rect is empty (point extent).
+
+    HTTP query arguments:
+        rect (string): Feature extent, specified as four numbers in the format "xmin,ymin,xmax,ymax".
+
+    Returns:
+        The new scale of the canvas (a single float)
+    """
+    ext = [float(x) for x in request.args['rect'].split(',')]
+    iface.mapCanvas().setExtent(QgsRectangle(ext[0], ext[1], ext[2], ext[3]))
+    # force redraw
+    iface.mapCanvas().refresh()
     return NetworkAPIResult(iface.mapCanvas().scale())
 
 @networkapi('/qgis/mapCanvas/zoomToFullExtent')
