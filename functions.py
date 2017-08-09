@@ -7,7 +7,7 @@
 #
 # the functions should return an instance of NetworkAPIResult
 
-from .registry import networkapi, NetworkAPIResult, toGeoJSON
+from .registry import networkapi, NetworkAPIResult, parseCRS, toGeoJSON
 from distutils.util import strtobool
 from qgis.core import QgsExpression, QgsFeatureRequest, QgsMapLayerRegistry, QgsPoint, QgsRectangle, QgsVectorFileWriter
 
@@ -174,7 +174,7 @@ def mapLayer_crs(iface, request):
     """
     layer = qgis_layer_by_id(request.args['id'])
     if request.command == 'POST':
-        layer.setCrs(parseCRS(request.get_payload()))
+        layer.setCrs(parseCRS(request.headers.get_payload()))
     return NetworkAPIResult(layer.crs())
 
 @networkapi('/qgis/mapLayer/featureCount')
