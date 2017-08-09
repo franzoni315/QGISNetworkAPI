@@ -160,6 +160,21 @@ def mapLayer(iface, request):
     """
     return NetworkAPIResult(qgis_layer_by_id(request.args['id']))
 
+@networkapi('/qgis/mapLayer/crs')
+def mapLayer_crs(iface, request):
+    """Get or set the layer's spatial reference system.
+
+    HTTP query arguments:
+        id (optional): ID of the desired layer.
+
+    Returns:
+        A JSON object representing the layer's spatial reference system (after updating)
+    """
+    layer = qgis_layer_by_id(iface, request)
+    if request.command == 'POST':
+        layer.setCrs(parseCRS(request.get_payload()))
+    return NetworkAPIResult(layer.crs())
+
 @networkapi('/qgis/mapLayer/featureCount')
 def mapLayer_featureCount(iface, request):
     """
@@ -485,13 +500,7 @@ def mapCanvas_setDestinationCrs(iface, request):
         A representation of the map canvas' coordinate reference system after
         applying the given definition string.
     """
-    spec = str(request.args['crs'])
-    crs = QgsCoordinateReferenceSystem(spec)
-    if not crs.isValid():
-        # TODO could try to crs.createFromProj4(spec) but while the resulting
-        # projections are valid, their application is often not handled
-        # correctly by QGIS
-        raise ValueError('Unknown CRS specification: ' + spec)
+    crs = parseCRS(request.args['crs'])
     # TODO is there a difference between this and the mapSettings.set() method?
     iface.mapCanvas().setDestinationCrs(crs)
     return NetworkAPIResult(iface.mapCanvas().mapSettings().destinationCrs())
