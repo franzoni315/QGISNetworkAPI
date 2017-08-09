@@ -3,17 +3,22 @@ QGIS Desktop Network API and remote control plugin
 
 This plugin provides a web service API that exposes QGIS' data processing and canvas drawing functionalities. The plugin provides a way to include QGIS in the data processing workflow of other (‘mapping-deficient’) programming languages over a HTTP interface which mirrors the existing QGIS API, without precluding the ability to make use of its interactive editing components. It is currently under development as part of [this Google Summer of Code 2017 project](https://summerofcode.withgoogle.com/projects/#5197021490184192).
 
+Related projects
+----------------
+
+The motivation behind this plugin is to make QGIS interface components available and scriptable from other mapping-deficient programming languages, in particular `R`. Development versions of the corresponding R package making use of this Network API can be found [here](https://gitlab.com/qgisapi/rqgisapi).
+
 Testing
 -------
 
-The plugin is currently under development so there is not a whole lot of documentation. You can nevertheless try out and help test the current development version of the plugin:
+The plugin is currently under development and not available from the QGIS Plugin repository yet. The basic architecture of the plugin is stable though, with most work focussing on adding new functionality. This is how you can try out and help test the current development version of the plugin:
 
 1.  Install the plugin into your $QGIS\_HOME/plugins/ folder, either by `git clone`ing this repository or by downloading the latest snapshot as a [zip file](https://gitlab.com/qgisapi/networkapi/repository/archive.zip?ref=master).
 2.  In QGIS (2.\*), activate the plugin under Plugins &gt; Manage and Install Plugins &gt; 'Network API'
 3.  The API is disabled by default, but can by activated through the 'Network API' check box in the status bar at the bottom right of the main QGIS window. By default the plugin will listen for requests on port 8090 and only accept local connections. Port and security settings can be changed in the plugin config dialog which can be accessed from the Plugin menu as well as a 'Network API' button added to the QGIS toolbar.
 4.  Once the API is enabled you can submit requests from other clients, for example from `R` using the [rqgisapi package](https://gitlab.com/qgisapi/rqgisapi). To see what functionalities are exposed by the Network API as well as their documentation, point your browser to <http://localhost:8090/api> (adjust the port accordingly). Currently implemented requests/paths can also be found in the [source file](https://gitlab.com/qgisapi/networkapi/blob/master/functions.py).
 
-Some example functionalities as run from a console:
+Here is just a *very limited* number of example functionalities of the plugin that can be invoked from a Linux console:
 
 ``` bash
 # make sure QGIS Desktop 2.* is running with the Network Plugin enabled, then:
@@ -58,7 +63,7 @@ curl --silent 'http://localhost:8090/qgis/addVectorLayer?url=https://d2ad6b4ur7y
 ``` bash
 # add another layer as POST data
 if [ ! -f "ne_50m_populated_places.geojson" ]; then
-  wget --no-verbose https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson
+  wget --no-verbose --no-check-certificate https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_populated_places.geojson
 fi
 curl --silent -d @ne_50m_populated_places.geojson http://localhost:8090/qgis/addVectorLayer?name=geojson-layer
 ```
@@ -186,10 +191,3 @@ curl --silent http://localhost:8090/qgis/mapCanvas/zoomScale?scale=1234567.8
 ```
 
     ## 1234567.7999999993
-
-Related projects
-----------------
-
-The motivation behind this plugin is to make QGIS interface components available and scriptable from other mapping-averse programming language such as R. Development versions of the corresponding R package making use of this Network API can be found [here](https://gitlab.com/qgisapi/rqgisapi).
-
-For using QGIS processing routines from R (geared towards performing large scale data mangling without making use of QGIS UI components, with a significant overhead per processing invocation), have a look at the [RQGIS package](https://github.com/jannes-m/RQGIS).
