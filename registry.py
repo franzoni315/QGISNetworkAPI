@@ -90,7 +90,14 @@ class QGISJSONEncoder(JSONEncoder):
         # HTTP response if the structure is not a primitive
         return JSONEncoder.default(self, o)
 
-
+def parseCRS(spec):
+    crs = QgsCoordinateReferenceSystem(str(spec))
+    if not crs.isValid():
+        # TODO could try to crs.createFromProj4(spec) but while the resulting
+        # projections are valid, their application is often not handled
+        # correctly by QGIS
+        raise ValueError('Unknown CRS specification: ' + str(spec))
+    return crs
 
 import os
 from tempfile import mkstemp
