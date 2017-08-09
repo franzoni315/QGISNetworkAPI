@@ -164,13 +164,15 @@ def mapLayer(iface, request):
 def mapLayer_crs(iface, request):
     """Get or set the layer's spatial reference system.
 
+    On receiving a POST request, attempts to set the layer's CRS to the content of the request body, which can be any specification for a coordinate reference system understandable by QGIS, such as a 'EPSG:...' or a WKT definition string.
+
     HTTP query arguments:
         id (optional): ID of the desired layer.
 
     Returns:
-        A JSON object representing the layer's spatial reference system (after updating)
+        A JSON object representing the layer's spatial reference system (after setting)
     """
-    layer = qgis_layer_by_id(iface, request)
+    layer = qgis_layer_by_id(request.args['id'])
     if request.command == 'POST':
         layer.setCrs(parseCRS(request.get_payload()))
     return NetworkAPIResult(layer.crs())
@@ -497,8 +499,7 @@ def mapCanvas_setDestinationCrs(iface, request):
         crs: specification for a coordinate reference system understandable by QGIS, such as a 'EPSG:...' or WKT definition string.
 
     Returns:
-        A representation of the map canvas' coordinate reference system after
-        applying the given definition string.
+        A JSON object representing the map canvas' coordinate reference system after applying the given definition string.
     """
     crs = parseCRS(request.args['crs'])
     # TODO is there a difference between this and the mapSettings.set() method?
