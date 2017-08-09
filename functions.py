@@ -75,6 +75,7 @@ def addVectorLayer(iface, request):
         baseName (string, optional): name for the new layer
         vectorLayerPath (string, optional): QGIS provider string to a local or external vector data source
         providerKey (string, optional): QGIS provider key (default: 'ogr')
+        crs (string, optional): specification for a coordinate reference system understandable by QGIS, such as a 'EPSG:...' or WKT definition string. This argument is really only useful for the case of adding GeoJSON data (via a POST request), since this is the only format which does not contain information on the coordinate system of the data.
 
     Returns:
         A JSON object containing information on the layer that was just added.
@@ -89,7 +90,15 @@ def addVectorLayer(iface, request):
         # try 'vectorLayerPath' GET arg (could actually be file:// or a web http:// url)
         # http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/loadlayer.html#vector-layers
         filename = request.args['vectorLayerPath']
-    return NetworkAPIResult(iface.addVectorLayer(filename, request.args.get('baseName', ''), request.args.get('providerKey', 'ogr')))
+    layer = iface.addVectorLayer(filename, request.args.get('baseName', ''), request.args.get('providerKey', 'ogr'))
+
+    if request.args.get('crs'):
+        # FIXME what about error handling in such a case? parsing the CRS might
+        # fail which means the API will return an error, without communicating
+        # information on the successfully added layer...
+        layer.setCrs(parseCRS(request.args['crs']))
+
+    return NetworkAPIResult(layer)
 
 @networkapi('/qgis/newProject')
 def mapLayers_count(iface, _):
