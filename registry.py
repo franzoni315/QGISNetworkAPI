@@ -91,11 +91,17 @@ class QGISJSONEncoder(JSONEncoder):
         return JSONEncoder.default(self, o)
 
 def parseCRS(spec):
+    try:
+        spec = float(spec)
+    except ValueError:
+        # most likely already a string anyway, but just in case...
+        spec = str(spec)
+
     crs = QgsCoordinateReferenceSystem(spec) # string or numeric
     if not crs.isValid():
         # check if it's proj4
-        if not crs.createFromProj4(str(spec)):
-            raise ValueError("Can't process CRS specification: " + str(spec))
+        if not crs.createFromProj4(spec):
+            raise ValueError("Can't process CRS specification: " + spec)
     return crs
 
 import os
