@@ -134,8 +134,11 @@ def qgis_layer_by_id(id):
 def qgis_layer_by_id_or_current(iface, request):
     if request.args.get('id'):
         return qgis_layer_by_id(request.args['id'])
-    else:
-        return iface.mapCanvas().currentLayer()
+
+    if iface.mapCanvas().currentLayer() == None:
+        raise ValueError('No layer selected in QGIS')
+
+    return iface.mapCanvas().currentLayer()
 
 # TODO add support for removal of multiple layers. unwise to overload arg name?
 @networkapi('/qgis/mapLayers/removeMapLayer')
