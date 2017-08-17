@@ -99,12 +99,15 @@ def mapLayer_saveNamedStyle(iface, request):
     return NetworkAPIResult(layer.saveNamedStyle(request.args['uri'], None))
 
 
-from qgis.core import QgsRasterLayer, QgsVectorLayer
+from qgis.core import QgsRasterLayer, QgsVectorLayer, QgsFeatureRendererV2
+# for dynamic loading of raster renderer classes
+from importlib import import_module
+qgiscore = import_module('qgis.core')
 
 @networkapi('/qgis/mapLayer/renderer')
 def mapLayer_renderer(iface, request):
     """
-    Retrieve the given layer's renderer specification.
+    Retrieve or set the given layer's renderer specification.
 
     HTTP query arguments:
         id (string): ID of the desired layer.
@@ -113,15 +116,39 @@ def mapLayer_renderer(iface, request):
         The QGIS XML representation of the given layer's renderer.
     """
     layer = qgis_layer_by_id(request.args['id'])
-    doc = QDomDocument('xml')
 
+    if request.command == 'POST':
+        # update renderer based on content XML
+        doc = QDomDocument('xml')
+
+        if not doc.setContent(request.headers.get_payload()):
+            # must be malformed xml?
+            return NetworkAPIResult(status=NetworkAPIResult.INVALID_ARGUMENTS)
+
+        if isinstance(layer, QgsVectorLayer):
+            # *vector* feature renderers can be instantiated/loaded by a
+            # central factory method that instantiates the right renderer class
+            renderer = QgsFeatureRendererV2.load(doc.documentElement())
+            # TODO additional error checking necessary?
+            layer.setRendererV2(renderer)
+        else:
+            # the same doesn't seem to be available for raster renderers: get
+            # root element and find the right class based on the tag name
+            root = doc.documentElement()
+            class_ = getattr(qgiscore, root.tagName())
+            # then instantiate the class based on the renderer spec from the
+            # child element (while retaining the same raster input)
+            renderer = class_.create(root.firstChildElement('rasterrenderer'), layer.renderer().input())
+            layer.setRenderer(renderer)
+
+    # read and return currently set renderer spec
+    doc = QDomDocument('xml')
     if isinstance(layer, QgsVectorLayer):
         ele = layer.rendererV2().save(doc)
         doc.appendChild(ele)
     else:
-        # 'pipe' is the parent element of the renderer when retrieving a
-        # QgsRasterLayer's XML representation
-        ele = doc.createElement('pipe')
+        # store raster renderer class in root element name
+        ele = doc.createElement(type(layer.renderer()).__name__)
         doc.appendChild(ele)
         layer.renderer().writeXML(doc, ele)
 
