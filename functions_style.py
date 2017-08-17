@@ -44,7 +44,8 @@ def mapLayer_style(iface, request):
     doc.appendChild(root)
     # TODO check return value (although this really shouldn't fail..)
     layer.writeStyle(root, doc, '')
-    return NetworkAPIResult(doc.toString(), 'text/xml')
+    # QDomDocument is automatically processed by server
+    return NetworkAPIResult(doc)
 
 @networkapi('/qgis/mapLayer/styleURI')
 def mapLayer_styleURI(iface, request):
@@ -96,3 +97,32 @@ def mapLayer_saveNamedStyle(iface, request):
     """
     layer = qgis_layer_by_id(request.args['id'])
     return NetworkAPIResult(layer.saveNamedStyle(request.args['uri'], None))
+
+
+from qgis.core import QgsRasterLayer, QgsVectorLayer
+
+@networkapi('/qgis/mapLayer/renderer')
+def mapLayer_renderer(iface, request):
+    """
+    Retrieve the given layer's renderer specification.
+
+    HTTP query arguments:
+        id (string): ID of the desired layer.
+
+    Returns:
+        The QGIS XML representation of the given layer's renderer.
+    """
+    layer = qgis_layer_by_id(request.args['id'])
+    doc = QDomDocument('xml')
+
+    if isinstance(layer, QgsVectorLayer):
+        ele = layer.rendererV2().save(doc)
+        doc.appendChild(ele)
+    else:
+        # 'pipe' is the parent element of the renderer when retrieving a
+        # QgsRasterLayer's XML representation
+        ele = doc.createElement('pipe')
+        doc.appendChild(ele)
+        layer.renderer().writeXML(doc, ele)
+
+    return NetworkAPIResult(doc)

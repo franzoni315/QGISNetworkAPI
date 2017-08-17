@@ -1,12 +1,17 @@
-from json import dump, loads
 from PyQt4.QtCore import pyqtSignal, QTimer
 from PyQt4.QtNetwork import QHostAddress, QTcpServer
 from network_api_dialog import NetworkAPIDialog
 from qgis.core import QgsMessageLog
 from qgis.gui import QgsMessageBar
 
+# request+response processing
+from json import dump, loads
+
+# response processing
+from PyQt4.QtXml import QDomDocument
 from .registry import QGISJSONEncoder, Registry
 
+# import actual API functions/paths
 from . import doc
 from . import functions
 from . import functions_processing
@@ -218,14 +223,20 @@ class NetworkAPIServer(QTcpServer):
             result = qgis_call(self.iface, self.request)
             self.request.send_response(result.status)
 
+            # extract xml document from nodes and set appropriate content-type
+            if isinstance(result.body, QDomDocument):
+                result.body = result.body.toString()
+                result.content_type = 'text/xml'
+
             # result content-type was set explicitly
             if result.content_type:
                 self.request.send_header('Content-Type', result.content_type)
                 self.request.end_headers()
                 self.request.wfile.write(result.body)
             else:
-                # autoconvert python classes using JSONEncoder below.
-                # note that GeoJSON results are NOT handled here!
+                # autoconvert python classes using the JSONEncoder found at
+                # the bottom of registry.py (note that GeoJSON results are NOT
+                # handled here but by the if branch above!)
                 self.request.send_header('Content-Type', 'application/json')
                 self.request.end_headers()
                 dump(result.body, self.request.wfile, cls=QGISJSONEncoder, indent=2)

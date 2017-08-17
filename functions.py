@@ -158,7 +158,7 @@ def mapLayers_removeMapLayer(iface, request):
 
 # http://qgis.org/api/2.18/classQgsMapLayer.html
 @networkapi('/qgis/mapLayer')
-def mapLayer(iface, request):
+def mapLayer(_, request):
     """
     Return information about the layer with the given ID.
 
@@ -173,13 +173,13 @@ def mapLayer(iface, request):
     return NetworkAPIResult(qgis_layer_by_id(request.args['id']))
 
 @networkapi('/qgis/mapLayer/crs')
-def mapLayer_crs(iface, request):
+def mapLayer_crs(_, request):
     """Get or set the layer's spatial reference system.
 
     On receiving a POST request, attempts to set the layer's CRS to the content of the request body, which can be any specification for a coordinate reference system understandable by QGIS, such as a 'EPSG:...' or a WKT definition string.
 
     HTTP query arguments:
-        id (optional): ID of the desired layer.
+        id (string): ID of the desired layer.
 
     Returns:
         A JSON object representing the layer's spatial reference system (after setting)
@@ -205,7 +205,7 @@ def mapLayer_featureCount(iface, request):
 
 # the following paths require 'id' an argument specifying the desired layer
 @networkapi('/qgis/mapLayer/fields')
-def mapLayer_fields(iface, request):
+def mapLayer_fields(_, request):
     """
     Returns the list of fields of a layer.
 
@@ -299,8 +299,6 @@ def mapLayer_selectedFeatureCount(iface, request):
     return NetworkAPIResult(layer.selectedFeatureCount())
 
 
-from qgis.core import QgsVectorLayer
-
 @networkapi('/qgis/mapLayer/selectedFeatures')
 def mapLayer_selectedFeatures(iface, request):
     """
@@ -371,7 +369,7 @@ from PyQt4.QtXml import QDomDocument
 
 # overload /xml path: POST loads layer from request, GET returns current xml
 @networkapi('/qgis/mapLayer/xml')
-def mapLayer_xml(iface, request):
+def mapLayer_xml(_, request):
     """
     Retrieve or set the definition of the layer with the given id.
 
@@ -394,7 +392,8 @@ def mapLayer_xml(iface, request):
         root = doc.createElement('maplayer')
         doc.appendChild(root)
         layer.writeLayerXML(root, doc, '')
-        return NetworkAPIResult(doc.toString(), 'text/xml')
+        # QDomDocument is automatically processed by server
+        return NetworkAPIResult(doc)
 
 
 # http://qgis.org/api/2.18/classQgsMapCanvas.html
@@ -433,7 +432,8 @@ def mapCanvas_xml(iface, _):
     root = doc.createElement('mapcanvas')
     doc.appendChild(root)
     iface.mapCanvas().mapSettings().writeXML(root, doc)
-    return NetworkAPIResult(doc.toString(), 'text/xml')
+    # QDomDocument is automatically processed by server
+    return NetworkAPIResult(doc)
 
 @networkapi('/qgis/mapCanvas/saveAsImage')
 def mapCanvas_saveAsImage(iface, request):
