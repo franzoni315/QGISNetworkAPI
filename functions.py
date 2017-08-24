@@ -364,14 +364,48 @@ def mapLayer_subLayers(iface, request):
     layer = qgis_layer_by_id_or_current(iface, request)
     return NetworkAPIResult(layer.subLayers())
 
+@networkapi('/qgis/mapLayer/visible')
+def mapLayer_visible(iface, request):
+    """Retrieve or set layer visibility (i.e. if it is rendered to the map canvas)
+
+    HTTP query arguments:
+        id (string): ID of layer whose visibility to retrieve or set
+
+    Returns:
+        The visibility status of the layer after the operation ('true' or 'false')
+    """
+    layer = qgis_layer_by_id(request.args['id'])
+    if request.command == 'POST':
+        iface.legendInterface().setLayerVisible(layer, request.headers.get_payload())
+    return NetworkAPIResult(iface.legendInterface().isLayerVisible(layer))
+
+@networkapi('/qgis/legendInterface/currentLayer')
+def legendInterface_currentLayer(iface, _):
+    """Retrieve the current (selected) layer in QGIS' layers panel.
+
+    Returns:
+        A JSON object containing information on the current layer (or 'null' if none is selected)
+    """
+    return NetworkAPIResult(iface.legendInterface().currentLayer())
+
+@networkapi('/qgis/legendInterface/setCurrentLayer')
+def legendInterface_setCurrentLayer(iface, request):
+    """Set the current (selected) layer in QGIS' layers panel.
+
+    HTTP query arguments:
+        id (string): ID of layer to set current
+
+    Returns:
+        'true' if the layer exists and could be set as the current layer, 'false' otherwise
+    """
+    return NetworkAPIResult(iface.legendInterface().setCurrentLayer(qgis_layer_by_id(request.args['id'])))
 
 from PyQt4.QtXml import QDomDocument
 
-# overload /xml path: POST loads layer from request, GET returns current xml
 @networkapi('/qgis/mapLayer/xml')
 def mapLayer_xml(_, request):
     """
-    Retrieve or set the definition of the layer with the given id.
+    Retrieve information about the layer with the given id.
 
     HTTP query arguments:
         id (string): ID of layer whose definition to retrieve or set
@@ -380,20 +414,12 @@ def mapLayer_xml(_, request):
         The XML definition for the layer with the given ID.
     """
     layer = qgis_layer_by_id(request.args['id'])
-    if request.command == 'POST':
-        doc = QDomDocument('xml')
-        # TODO needs testing
-        if doc.setContent(request.headers.get_payload()) and layer.readLayerXml(doc):
-            return NetworkAPIResult()
-        else:
-            return NetworkAPIResult(status=NetworkAPIResult.INVALID_ARGUMENTS)
-    else:
-        doc = QDomDocument('xml')
-        root = doc.createElement('maplayer')
-        doc.appendChild(root)
-        layer.writeLayerXML(root, doc, '')
-        # QDomDocument is automatically processed by server
-        return NetworkAPIResult(doc)
+    doc = QDomDocument('xml')
+    root = doc.createElement('maplayer')
+    doc.appendChild(root)
+    layer.writeLayerXML(root, doc, '')
+    # QDomDocument is automatically processed by server
+    return NetworkAPIResult(doc)
 
 
 # http://qgis.org/api/2.18/classQgsMapCanvas.html

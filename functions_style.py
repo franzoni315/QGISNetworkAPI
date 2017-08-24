@@ -40,7 +40,7 @@ def mapLayer_style(iface, request):
             return NetworkAPIResult(status=NetworkAPIResult.INVALID_ARGUMENTS)
 
     doc = QDomDocument('xml')
-    root = doc.createElement('maplayer')
+    root = doc.createElement('pipe')
     doc.appendChild(root)
     # TODO check return value (although this really shouldn't fail..)
     layer.writeStyle(root, doc, '')
