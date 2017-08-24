@@ -473,6 +473,10 @@ def mapCanvas_xml(iface, _):
     # QDomDocument is automatically processed by server
     return NetworkAPIResult(doc)
 
+
+# to be able to block while awaiting redraw-signal
+from PyQt4.QtCore import QEventLoop
+
 @networkapi('/qgis/mapCanvas/saveAsImage')
 def mapCanvas_saveAsImage(iface, request):
     """
@@ -493,9 +497,17 @@ def mapCanvas_saveAsImage(iface, request):
     if pixmap.isNull():
         pixmap = None
 
-    # FIXME if the canvas has been modified very recently, it might not be done
-    # re-rendering yet...
-    # from QGIS 3 we could simply use: iface.mapCanvas().waitWhileRendering()
+    # if the canvas has been modified very recently, it might not be done
+    # re-rendering yet... current fix (from QGIS 3 we could simply use:
+    # iface.mapCanvas().waitWhileRendering()
+    loop = QEventLoop()
+    iface.mapCanvas().mapCanvasRefreshed.connect(loop.quit)
+    # trigger repaint
+    iface.mapCanvas().refresh() # could use refreshAllLayers() to empty cache too
+    # wait
+    loop.exec_()
+    # all good
+    iface.mapCanvas().mapCanvasRefreshed.disconnect(loop.quit)
 
     # doesn't provide status information about success of writing, have to
     # check file size below
