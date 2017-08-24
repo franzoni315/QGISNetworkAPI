@@ -226,7 +226,7 @@ class NetworkAPIServer(QTcpServer):
             # extract xml document from nodes and set appropriate content-type
             if isinstance(result.body, QDomDocument):
                 result.body = result.body.toString()
-                result.content_type = 'text/xml'
+                result.content_type = 'text/xml; charset=utf-8'
 
             # result content-type was set explicitly
             if result.content_type:

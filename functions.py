@@ -278,7 +278,7 @@ def mapLayer_getFeatures(iface, request):
     result = layer.getFeatures(featurerequest)
 
     if strtobool(request.args.get('geometry', 'n')):
-        return NetworkAPIResult(toGeoJSON(layer, result), 'application/geo+json')
+        return NetworkAPIResult(toGeoJSON(layer, result), 'application/geo+json; charset=utf-8')
     else:
         # note that the lazy QgsFeatureIterator returned here is currently
         # turned into a full in-memory list during conversion to JSON
@@ -333,7 +333,7 @@ def mapLayer_selectedFeatures_geometry(iface, request):
         A GeoJSON FeatureCollection with complete data of all selected features of the given vector layer.
     """
     layer = qgis_layer_by_id_or_current(iface, request)
-    return NetworkAPIResult(toGeoJSON(layer, layer.selectedFeatures()), 'application/geo+json')
+    return NetworkAPIResult(toGeoJSON(layer, layer.selectedFeatures()), 'application/geo+json; charset=utf-8')
 
 @networkapi('/qgis/mapLayer/setAttribution')
 def mapLayer_setAttribution(iface, request):
@@ -379,9 +379,21 @@ def mapLayer_visible(iface, request):
         iface.legendInterface().setLayerVisible(layer, request.headers.get_payload())
     return NetworkAPIResult(iface.legendInterface().isLayerVisible(layer))
 
+@networkapi('/qgis/legendInterface/layers')
+def legendInterface_layers(iface, _):
+    """Return all layers in the project in drawing order.
+
+    Returns:
+        A JSON object containing id : layer pairs.
+    """
+    return NetworkAPIResult(iface.legendInterface().layers())
+
+#    iface.layerTreeCanvasBridge().setCustomLayerOrder( order )
+
+
 @networkapi('/qgis/legendInterface/currentLayer')
 def legendInterface_currentLayer(iface, _):
-    """Retrieve the current (selected) layer in QGIS' layers panel.
+    """Retrieve the current layer in QGIS' layers panel.
 
     Returns:
         A JSON object containing information on the current layer (or 'null' if none is selected)
@@ -390,7 +402,7 @@ def legendInterface_currentLayer(iface, _):
 
 @networkapi('/qgis/legendInterface/setCurrentLayer')
 def legendInterface_setCurrentLayer(iface, request):
-    """Set the current (selected) layer in QGIS' layers panel.
+    """Set the current layer in QGIS' layers panel.
 
     HTTP query arguments:
         id (string): ID of layer to set current
