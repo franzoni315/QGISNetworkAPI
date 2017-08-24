@@ -141,6 +141,8 @@ def mapLayer_renderer(iface, request):
             renderer = class_.create(root.firstChildElement('rasterrenderer'), layer.renderer().input())
             layer.setRenderer(renderer)
 
+        layer.triggerRepaint()
+
     # read and return currently set renderer spec
     doc = QDomDocument('xml')
     if isinstance(layer, QgsVectorLayer):
