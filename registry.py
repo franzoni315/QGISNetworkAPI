@@ -39,11 +39,12 @@ class NetworkAPIResult:
         self.body = body
         self.content_type = content_type
         self.status = status
-# response body can be of any type and will be automatically converted using
-# json.dump() based on the following encoder:
-
+# response body can be of any type and will be automatically converted by the
+# server using json.dump() based on the following encoder:
 from json import JSONEncoder
+
 from PyQt4.QtCore import QDate, QDateTime, QPyNullVariant, QSize, QTime, Qt
+
 from qgis.core import QgsFeature, QgsFeatureIterator, QgsFields, QgsGeometry, QgsMapLayer, QgsMapSettings, QgsPoint, QgsRectangle, QgsCoordinateReferenceSystem, QgsUnitTypes
 from qgis.gui import QgsMapCanvas
 

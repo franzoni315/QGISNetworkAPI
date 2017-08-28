@@ -541,31 +541,36 @@ def mapCanvas_setCenter(iface, request):
     iface.mapCanvas().setCenter(center)
     return NetworkAPIResult(iface.mapCanvas().center())
 
-@networkapi('/qgis/mapCanvas/setCrsTransformEnabled')
-def mapCanvas_setCrsTransformEnabled(iface, request):
-    """Set whether on-the-fly reprojection is enabled or disabled.
+@networkapi('/qgis/mapCanvas/crsTransformEnabled')
+def mapCanvas_crsTransformEnabled(iface, request):
+    """Get or set whether on-the-fly reprojection is enabled or disabled.
 
-    HTTP query arguments:
-        enabled: whether on-the-fly reprojection should be turned on or off. Accepts several string representations of booleans (e.g. 1, 0, true, false, yes, no, ...).
+    Returns: whether on-the-fly reprojection is currently enabled or not.
+
+    If the request is a POST request, parses the new on/off setting from the request body (accepts several string representations such as 1, 0, true, false, yes, no, ...).
+
     """
-    iface.mapCanvas().setCrsTransformEnabled(strtobool(request.args['enabled']))
-    return NetworkAPIResult()
+    if request.command == 'POST':
+        iface.mapCanvas().setCrsTransformEnabled(request.headers.get_payload())
+
+    return NetworkAPIResult(iface.mapCanvas().hasCrsTransformEnabled())
 
 from qgis.core import QgsCoordinateReferenceSystem
 
-@networkapi('/qgis/mapCanvas/setDestinationCrs')
-def mapCanvas_setDestinationCrs(iface, request):
-    """Set the map canvas' destination coordinate reference system.
+@networkapi('/qgis/mapCanvas/destinationCrs')
+def mapCanvas_destinationCrs(iface, request):
+    """Get or set the map canvas' destination coordinate reference system.
 
-    HTTP query arguments:
-        crs: specification for a coordinate reference system understandable by QGIS, such as a 'EPSG:...' or WKT definition string.
+    If the request is a POST request, sets the destination CRS to that specified by the request body. Supports any specification understandable by QGIS, such as a 'EPSG:...' or a WKT or proj.4 definition string.
 
     Returns:
         A JSON object representing the map canvas' coordinate reference system after applying the given definition string.
     """
-    crs = parseCRS(request.args['crs'])
-    # TODO is there a difference between this and the mapSettings.set() method?
-    iface.mapCanvas().setDestinationCrs(crs)
+    if request.command == 'POST':
+        crs = parseCRS(request.headers.get_payload())
+        # don't use mapSettings.setDestinationCrs() directly but call the map
+        # canvas' function, which does some additional checking first
+        iface.mapCanvas().setDestinationCrs(crs)
     return NetworkAPIResult(iface.mapCanvas().mapSettings().destinationCrs())
 
 @networkapi('/qgis/mapCanvas/extent')
