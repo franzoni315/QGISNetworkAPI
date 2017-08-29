@@ -547,8 +547,7 @@ def mapCanvas_crsTransformEnabled(iface, request):
 
     Returns: whether on-the-fly reprojection is currently enabled or not.
 
-    If the request is a POST request, parses the new on/off setting from the request body (accepts several string representations such as 1, 0, true, false, yes, no, ...).
-
+    If the request is a POST request, parses the new on/off setting (as a JSON-encoded boolean or number) from the request body.
     """
     if request.command == 'POST':
         iface.mapCanvas().setCrsTransformEnabled(request.headers.get_payload())
