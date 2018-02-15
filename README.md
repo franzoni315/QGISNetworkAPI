@@ -6,7 +6,7 @@ This plugin provides a web service API that exposes QGIS' data processing and ca
 Related projects
 ----------------
 
-The motivation behind this plugin is to make QGIS interface components available and scriptable from other mapping-deficient programming languages, in particular `R`. Development versions of the corresponding R package making use of this Network API can be found [here](https://gitlab.com/qgisapi/rqgisapi).
+The motivation behind this plugin is to make QGIS interface components available and scriptable from other mapping-deficient programming languages, in particular `R`. Development versions of the corresponding R package making use of this Network API can be found [here](https://gitlab.com/qgisapi/qgisremote).
 
 Testing
 -------
@@ -16,7 +16,7 @@ The plugin is currently under development and not available from the QGIS Plugin
 1.  Install the plugin into your $QGIS\_HOME/plugins/ folder, either by `git clone`ing this repository or by downloading the latest snapshot as a [zip file](https://gitlab.com/qgisapi/networkapi/repository/archive.zip?ref=master).
 2.  In QGIS (2.\*), activate the plugin under Plugins &gt; Manage and Install Plugins &gt; 'Network API'
 3.  The API is disabled by default, but can by activated through the 'Network API' check box in the status bar at the bottom right of the main QGIS window. By default the plugin will listen for requests on port 8090 and only accept local connections. Port and security settings can be changed in the plugin config dialog which can be accessed from the Plugin menu as well as a 'Network API' button added to the QGIS toolbar.
-4.  Once the API is enabled you can submit requests from other clients, for example from `R` using the [rqgisapi package](https://gitlab.com/qgisapi/rqgisapi). To see what functionalities are exposed by the Network API as well as their documentation, point your browser to <http://localhost:8090/api> (adjust the port accordingly). Currently implemented requests/paths can also be found in the [source file](https://gitlab.com/qgisapi/networkapi/blob/master/functions.py).
+4.  Once the API is enabled you can submit requests from other clients, for example from `R` using the [qgisremote package](https://gitlab.com/qgisapi/qgisremote). To see what functionalities are exposed by the Network API as well as their documentation, point your browser to <http://localhost:8090/api> (adjust the port accordingly). Currently implemented requests/paths can also be found in the [source file](https://gitlab.com/qgisapi/networkapi/blob/master/functions.py).
 
 Here is just a *very limited* number of example functionalities of the plugin that can be invoked from a Linux console:
 
