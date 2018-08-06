@@ -9,7 +9,8 @@
 
 from .registry import networkapi, NetworkAPIResult, parseCRS, toGeoJSON
 from distutils.util import strtobool
-from qgis.core import QgsExpression, QgsFeatureRequest, QgsMapLayerRegistry, QgsPoint, QgsRectangle, QgsVectorFileWriter
+from qgis.core import QgsExpression, QgsFeatureRequest, QgsMapLayerRegistry, QgsPoint, QgsRectangle, QgsVectorFileWriter, QgsRasterLayer
+import urllib
 
 # TODO add simple function to simplify wrapping argument-free function calls
 
@@ -59,6 +60,65 @@ def addRasterLayer(iface, request):
             # 3 args for WMS layer: url, name, providerkey
         else:
             return NetworkAPIResult(iface.addRasterLayer(request.args['url'], request.args.get('layerName', ''), request.args['providerKey']))
+
+@networkapi('/qgis/addTileServerLayer')
+def addTileServerLayer(iface, request):
+    """
+    Add a new tile server layer to QGIS.
+
+    HTTP query arguments:
+        name (string): name for the new layer
+        url (string): url of WMS service to be added as a new layer
+        providerKey (string): QGIS provider key (default: 'wms')
+
+    Returns:
+        A JSON object containing information on the layer that was just added.
+    """
+    url = request.args['url']
+    uri = 'type=xyz&url='+ urllib.quote_plus(url)
+    name = request.args.get('name', '')
+    provider = request.args['providerKey']
+    rasterLyr = QgsRasterLayer(uri, name, provider) 
+    return NetworkAPIResult(QgsMapLayerRegistry.instance().addMapLayer(rasterLyr))
+
+@networkapi('/qgis/overwriteTileServerLayer')
+def overwriteTileServerLayer(iface, request):
+    """
+    Overwrites tile server layer to QGIS.
+
+    HTTP query arguments:
+        name (string): name for the new layer
+        url (string): url of WMS service to be added as a new layer
+        providerKey (string): QGIS provider key (default: 'wms')
+
+    Returns:
+        A JSON object containing information on the layer that was just added.
+    """
+    url = request.args['url']
+    uri = 'type=xyz&url='+ urllib.quote_plus(url)
+    name = request.args.get('name', '')
+    provider = request.args['providerKey']
+
+    layer = QgsMapLayerRegistry.instance().mapLayersByName(layer_name)
+    QgsMapLayerRegistry.instance().removeMapLayers(layer)
+
+    rasterLyr = QgsRasterLayer(uri, name, provider)
+    return NetworkAPIResult(QgsMapLayerRegistry.instance().addMapLayer(rasterLyr))
+
+@networkapi('/qgis/removeLayerByName')
+def removeLayerByName(iface, request):
+    """
+    Removes layer from QGIS using provided name.
+
+    HTTP query arguments:
+        name (string): name of layer that will be removed
+
+    Returns:
+        A JSON object containing information on the layer that was just removed.
+    """
+    layer_name = request.args['name']
+    layer = QgsMapLayerRegistry.instance().mapLayersByName(layer_name)
+    return NetworkAPIResult(QgsMapLayerRegistry.instance().removeMapLayers(layer))
 
 @networkapi('/qgis/addVectorLayer')
 def addVectorLayer(iface, request):
