@@ -1,3 +1,5 @@
+Fork from https://gitlab.com/qgisapi/networkapi. Adding functions for visualization of earth engine tile server in QGIS.
+
 QGIS Desktop Network API and remote control plugin
 ==================================================
 
